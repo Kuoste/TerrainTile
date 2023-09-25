@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tools
@@ -17,14 +18,28 @@ namespace Kuoste.LidarWorld.Tools
         /// <returns>New terrain data instance</returns>
         public static TerrainData Clone(TerrainData original)
         {
+            Stopwatch sw = Stopwatch.StartNew();
+
             TerrainData dup = new();
+
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone new took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
 
             dup.alphamapResolution = original.alphamapResolution;
             dup.baseMapResolution = original.baseMapResolution;
 
             dup.detailPrototypes = CloneDetailPrototypes(original.detailPrototypes);
 
+            sw.Stop();
+            UnityEngine.Debug.Log($"TerrainData.Clone CloneDetailPrototypes took {sw.ElapsedMilliseconds} ms");
+            sw.Restart();
+
             dup.SetDetailResolution(original.detailResolution, original.detailResolutionPerPatch);
+
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone SetDetailResolution took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
 
             dup.heightmapResolution = original.heightmapResolution;
             dup.size = original.size;
@@ -38,16 +53,33 @@ namespace Kuoste.LidarWorld.Tools
             dup.wavingGrassStrength = original.wavingGrassStrength;
             dup.wavingGrassTint = original.wavingGrassTint;
 
-            dup.SetAlphamaps(0, 0, original.GetAlphamaps(0, 0, original.alphamapWidth, original.alphamapHeight));
-            dup.SetHeights(0, 0, original.GetHeights(0, 0, original.heightmapResolution, original.heightmapResolution));
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone terrainLayers took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
 
-            for (int n = 0; n < original.detailPrototypes.Length; n++)
-            {
-                dup.SetDetailLayer(0, 0, n, original.GetDetailLayer(0, 0, original.detailWidth, original.detailHeight, n));
-            }
+            dup.SetAlphamaps(0, 0, original.GetAlphamaps(0, 0, original.alphamapWidth, original.alphamapHeight));
+
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone SetAlphamaps took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
+
+            //dup.SetHeights(0, 0, original.GetHeights(0, 0, original.heightmapResolution, original.heightmapResolution));
+
+            //for (int n = 0; n < original.detailPrototypes.Length; n++)
+            //{
+            //    dup.SetDetailLayer(0, 0, n, original.GetDetailLayer(0, 0, original.detailWidth, original.detailHeight, n));
+            //}
 
             dup.treePrototypes = CloneTreePrototypes(original.treePrototypes);
-            dup.treeInstances = CloneTreeInstances(original.treeInstances);
+
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone CloneTreePrototypes took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
+
+            //dup.treeInstances = CloneTreeInstances(original.treeInstances);
+
+            sw.Stop();
+            UnityEngine.Debug.Log($"TerrainData.Clone took {sw.ElapsedMilliseconds} ms");
 
             return dup;
         }
