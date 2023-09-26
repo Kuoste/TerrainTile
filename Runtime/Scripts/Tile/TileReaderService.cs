@@ -9,10 +9,10 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Terrain
 {
-    public class TerrainTileLoader// : MonoBehaviour
+    public class TileReaderService// : MonoBehaviour
     {
-        private readonly string _sDirectoryIntermediate;
-        private readonly string _sVersion;
+        //private readonly string _sDirectoryIntermediate;
+        //private readonly string _sVersion;
 
         readonly Thread _loaderThread;
         readonly ConcurrentQueue<TerrainTile> _tileQueue = new();
@@ -35,14 +35,14 @@ namespace Kuoste.LidarWorld.Terrain
             public int CompletedCount;
         }
 
-        public TerrainTileLoader(string sDirectoryIntermediate, string sVersion)
+        public TileReaderService(string sDirectoryIntermediate, string sVersion)
         {
-            _sDirectoryIntermediate = sDirectoryIntermediate;
-            _sVersion = sVersion;
+            //_sDirectoryIntermediate = sDirectoryIntermediate;
+            //_sVersion = sVersion;
 
             _loaderThread = new Thread(() =>
             {
-                ITerrainProvider tp = new TerrainReader();
+                ITileProvider tp = new TileReader();
 
                 long iLoopCount = 0;
 
@@ -54,7 +54,7 @@ namespace Kuoste.LidarWorld.Terrain
                         Stopwatch sw = Stopwatch.StartNew();
 
                         // Load grid from filesystem
-                        var grids = tp.GetTerrain(_sDirectoryIntermediate, tile.Name, sVersion);
+                        var grids = tp.GetTerrain(sDirectoryIntermediate, tile.Name, sVersion);
 
                         if (!grids.ContainsKey(tile.Name))
                         {
@@ -98,7 +98,7 @@ namespace Kuoste.LidarWorld.Terrain
                         for (int i = _tilesPostphoned.Count - 1; i >= 0; i--)
                         {
                             // Load grid from filesystem
-                            var grids = tp.GetTerrain(_sDirectoryIntermediate, _tilesPostphoned[i].Name, sVersion);
+                            var grids = tp.GetTerrain(sDirectoryIntermediate, _tilesPostphoned[i].Name, sVersion);
 
                             if (!grids.ContainsKey(_tilesPostphoned[i].Name))
                             {

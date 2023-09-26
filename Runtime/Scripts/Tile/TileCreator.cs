@@ -13,7 +13,7 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Terrain
 {
-    public class TerrainCreator : ITerrainProvider
+    public class TileCreator : ITileProvider
     {
         /// <summary>
         /// Currently only the 3x3 km2 las tiles are supported.

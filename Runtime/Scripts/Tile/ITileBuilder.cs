@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Terrain
 {
-    public interface ITerrainProvider
+    public interface ITileProvider
     {
         Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string sMapTileName, string sVersion);
     }

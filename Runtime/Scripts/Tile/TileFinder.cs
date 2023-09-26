@@ -9,7 +9,7 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Terrain
 {
-    public class GridManager
+    public class TileFinder
     {
         public enum TileStatus
         {
@@ -29,7 +29,7 @@ namespace Kuoste.LidarWorld.Terrain
 
         readonly Thread _consumingThread;
 
-        public GridManager(string sDirectoryOriginal, string sDirectoryIntermediate, string sVersion)
+        public TileFinder(string sDirectoryOriginal, string sDirectoryIntermediate, string sVersion)
         {
             _sDirectoryOriginal = sDirectoryOriginal;
             _sDirectoryIntermediate = sDirectoryIntermediate;
@@ -37,7 +37,7 @@ namespace Kuoste.LidarWorld.Terrain
 
             _consumingThread = new Thread(() =>
              {
-                 ITerrainProvider tp = new TerrainCreator();
+                 ITileProvider tp = new TileCreator();
 
                  if (!Directory.Exists(sDirectoryIntermediate))
                      Directory.CreateDirectory(sDirectoryIntermediate);
