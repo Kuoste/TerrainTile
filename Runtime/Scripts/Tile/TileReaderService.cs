@@ -74,17 +74,47 @@ namespace Kuoste.LidarWorld.Terrain
                         {
                             for (int j = 0; j < tile.TerrainGrid.Bounds.ColumnCount; j++)
                             {
-                                if (tile.TerrainGrid.IsHighestBinInNeighborhood(i, j, 2, byte.MinValue, byte.MaxValue))
+                                int iRadius = 2;
+                                int iHighVegetationCount = 0;
+
+                                for (int ii = i - iRadius; ii <= i + iRadius; ii++)
+                                {
+                                    for (int jj = j - iRadius; jj <= j + iRadius; jj++)
+                                    {
+                                        if (ii < 0 || ii > tile.TerrainGrid.Bounds.RowCount - 1 ||
+                                            jj < 0 || jj > tile.TerrainGrid.Bounds.ColumnCount - 1)
+                                        {
+                                            continue;
+                                        }
+
+                                        List<BinPoint> points = tile.TerrainGrid.GetPoints(ii, jj);
+
+                                        foreach (BinPoint p in points)
+                                        {
+                                            if (p.Class == (byte)NlsClasses.PointCloud05p.HighVegetation)
+                                                iHighVegetationCount++;
+                                        }
+                                    }
+                                }
+
+                                if (iHighVegetationCount < 15)
+                                    continue;
+
+                                if (tile.TerrainGrid.IsHighestBinInNeighborhood(i, j, iRadius, 
+                                    (byte)NlsClasses.PointCloud05p.HighVegetation, 
+                                    (byte)NlsClasses.PointCloud05p.HighVegetation))
                                 {
                                     tile.Trees.Add(new(i, j,
-                                        tile.TerrainGrid.GetHighestPointInClassRange(i, j, byte.MinValue, byte.MaxValue).Z -
+                                        tile.TerrainGrid.GetHighestPointInClassRange(i, j, 
+                                        (byte)NlsClasses.PointCloud05p.HighVegetation, 
+                                        (byte)NlsClasses.PointCloud05p.HighVegetation).Z -
                                         tile.TerrainGrid.GetGroundHeight(i, j)));
                                 }
                             }
                         }
 
                         sw.Stop();
-                        Debug.Log($"Tile {tile.Name} trees determined in {sw.ElapsedMilliseconds} ms.");
+                        Debug.Log($"Tile {tile.Name}: {tile.Trees.Count} trees determined in {sw.ElapsedMilliseconds} ms.");
                         sw.Restart();
 
                         // Clone terrainData

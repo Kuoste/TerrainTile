@@ -104,7 +104,7 @@ namespace Kuoste.LidarWorld.Terrain
 
                 // Classifications from
                 // https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/asiantuntevalle-kayttajalle/tuotekuvaukset/laserkeilausaineisto-05-p
-                if (p.classification == 2)
+                if (p.classification == (byte)NlsClasses.PointCloud05p.Ground)
                 {
                     //dMinGroundHeight = Math.Min(p.y, dMinGroundHeight);
                     dMaxGroundHeight = Math.Max(p.y, dMaxGroundHeight);
@@ -373,9 +373,10 @@ namespace Kuoste.LidarWorld.Terrain
                         }
                     }
                 }
-                else if (p.classification < 6)
+                else if (p.classification == (byte)NlsClasses.PointCloud05p.LowVegetation ||
+                    p.classification == (byte)NlsClasses.PointCloud05p.MedVegetation ||
+                    p.classification == (byte)NlsClasses.PointCloud05p.HighVegetation)
                 {
-                    // Add other and low/med/high vegetation
                     grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, false);
                 }
             }
