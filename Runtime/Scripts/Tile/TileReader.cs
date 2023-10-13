@@ -1,11 +1,23 @@
+using LasUtility.Common;
 using LasUtility.VoxelGrid;
+using NetTopologySuite.Geometries;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Kuoste.LidarWorld.Terrain
+namespace Kuoste.LidarWorld.Tile
 {
     public class TileReader : ITileProvider
     {
+        public List<Polygon> GetBuildings(string sDirectory, string sMapTileName, string sVersion)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Dictionary<string, HeightMap> GetBuildingsAndRoads(string sDirectory, string sMapTileName, string sVersion)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string sMapTileName, string sVersion)
         {
             string sFilename = Path.Combine(sDirectory, sMapTileName + "_v" + sVersion + ".obj");
@@ -18,6 +30,11 @@ namespace Kuoste.LidarWorld.Terrain
             }
 
             return grids;
+        }
+
+        public Dictionary<string, HeightMap> GetTerrainFeatures(string sDirectory, string sMapTileName, string sVersion)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

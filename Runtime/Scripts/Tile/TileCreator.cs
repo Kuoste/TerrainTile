@@ -1,8 +1,13 @@
+using LasUtility.Common;
 using LasUtility.DEM;
 using LasUtility.LAS;
-using LasUtility.NlsTileName;
+using LasUtility.Nls;
+using LasUtility.ShapefileRasteriser;
 using LasUtility.VoxelGrid;
+using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.IO.Esri;
+using NetTopologySuite.IO.Esri.Shapefiles.Readers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,7 +16,7 @@ using System.IO;
 using Unity.VisualScripting;
 using Debug = UnityEngine.Debug;
 
-namespace Kuoste.LidarWorld.Terrain
+namespace Kuoste.LidarWorld.Tile
 {
     public class TileCreator : ITileProvider
     {
@@ -47,7 +52,7 @@ namespace Kuoste.LidarWorld.Terrain
 
         public Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string s3km3kmTileName, string sVersion)
         {
-            NlsTileNamer.Decode(s3km3kmTileName, out Envelope area);
+            TileNamer.Decode(s3km3kmTileName, out Envelope area);
 
             if (area == null || area.Width != m_iSupportedInputTileWidth)
             {
@@ -77,7 +82,7 @@ namespace Kuoste.LidarWorld.Terrain
             {
                 // Create the NLS (Maanmittauslaitos) style name of a 1x1 km2 tile in order to get the coordinates.
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
-                NlsTileNamer.Decode(sSubmeshName, out Envelope extent);
+                TileNamer.Decode(sSubmeshName, out Envelope extent);
 
                 grids[i] = VoxelGrid.CreateGrid(sSubmeshName, m_iUnityHeightmapResolution, m_iUnityHeightmapResolution, extent);
                 grids[i].Version = sVersion;
@@ -104,7 +109,7 @@ namespace Kuoste.LidarWorld.Terrain
 
                 // Classifications from
                 // https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/asiantuntevalle-kayttajalle/tuotekuvaukset/laserkeilausaineisto-05-p
-                if (p.classification == (byte)NlsClasses.PointCloud05p.Ground)
+                if (p.classification == (byte)PointCloud05p.Classes.Ground)
                 {
                     //dMinGroundHeight = Math.Min(p.y, dMinGroundHeight);
                     dMaxGroundHeight = Math.Max(p.y, dMaxGroundHeight);
@@ -373,9 +378,9 @@ namespace Kuoste.LidarWorld.Terrain
                         }
                     }
                 }
-                else if (p.classification == (byte)NlsClasses.PointCloud05p.LowVegetation ||
-                    p.classification == (byte)NlsClasses.PointCloud05p.MedVegetation ||
-                    p.classification == (byte)NlsClasses.PointCloud05p.HighVegetation)
+                else if (p.classification == (byte)PointCloud05p.Classes.LowVegetation ||
+                    p.classification == (byte)PointCloud05p.Classes.MedVegetation ||
+                    p.classification == (byte)PointCloud05p.Classes.HighVegetation)
                 {
                     grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, false);
                 }
@@ -398,7 +403,7 @@ namespace Kuoste.LidarWorld.Terrain
 
                 // Use the name of a 1x1 km2 tile to get the coordinates
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
-                NlsTileNamer.Decode(sSubmeshName, out Envelope env);
+                TileNamer.Decode(sSubmeshName, out Envelope env);
 
                 double dEspsilon = 0.00001;
                 grid.SetMissingHeightsFromTriangulation(tri,
@@ -422,6 +427,84 @@ namespace Kuoste.LidarWorld.Terrain
             Debug.Log($"Finished! Total preprocessing time for tile {s3km3kmTileName} was {swTotal.Elapsed.TotalSeconds} seconds.");
 
             return gridsByName;
+        }
+
+        public Dictionary<string, HeightMap> GetTerrainFeatures(string sDirectory, string sMapTileName, string sVersion)
+        {
+            // Get topographic db tile name
+            TileNamer.Decode(sMapTileName, out Envelope bounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+
+            Rasteriser rasteriser = new();
+            rasteriser.InitializeRaster(bounds);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
+
+            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+            rasteriser.AddShapefile(sFullFilename);
+
+            // Split 12km x 12 km raster into 1x1 km2 tiles
+            Dictionary<string, HeightMap> heightMaps = new();
+            
+            for (int x = 0; x < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+            {
+                for (int y = 0; y < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+                {
+                    heightMaps.Add(TileNamer.Encode(x, y, m_iEdgeLength), rasteriser.Crop(x, y, x + m_iEdgeLength, y + m_iEdgeLength));
+                }
+            }
+
+            return heightMaps;
+        }
+
+        public Dictionary<string, HeightMap> GetBuildingsAndRoads(string sDirectory, string sMapTileName, string sVersion)
+        {
+            // Get topographic db tile name
+            TileNamer.Decode(sMapTileName, out Envelope bounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+
+            Rasteriser rasteriser = new();
+            rasteriser.InitializeRaster(bounds);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
+
+            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
+            rasteriser.AddShapefile(sFullFilename);
+
+            // Split 12km x 12 km raster into 1x1 km2 tiles
+            Dictionary<string, HeightMap> heightMaps = new();
+
+            for (int x = 0; x < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+            {
+                for (int y = 0; y < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+                {
+                    heightMaps.Add(TileNamer.Encode(x, y, m_iEdgeLength), rasteriser.Crop(x, y, x + m_iEdgeLength, y + m_iEdgeLength));
+                }
+            }
+
+            return heightMaps;
+        }
+
+        public List<Polygon> GetBuildings(string sDirectory, string sMapTileName, string sVersion)
+        {
+            // Get topographic db tile name
+            TileNamer.Decode(sMapTileName, out Envelope bounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+
+            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+
+            Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
+            List<Polygon> polygons = new();
+
+            foreach (Feature f in features)
+            {
+                int classification = (int)(long)f.Attributes["LUOKKA"];
+
+                if (TopographicDb.BuildingPolygonClassesToRasterValues.ContainsKey(classification))
+                {
+                    polygons.Add((Polygon)f.Geometry);
+                }
+            }
+
+            return polygons;
         }
     }
 }

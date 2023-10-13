@@ -1,4 +1,4 @@
-using LasUtility.NlsTileName;
+using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.IO;
 using System.Threading;
 using Debug = UnityEngine.Debug;
 
-namespace Kuoste.LidarWorld.Terrain
+namespace Kuoste.LidarWorld.Tile
 {
     public class TileFinder
     {
@@ -27,7 +27,7 @@ namespace Kuoste.LidarWorld.Terrain
 
         readonly ConcurrentQueue<string> _lasQueue = new();
 
-        readonly Thread _consumingThread;
+        readonly Thread _triangulationThread;
 
         public TileFinder(string sDirectoryOriginal, string sDirectoryIntermediate, string sVersion)
         {
@@ -35,7 +35,7 @@ namespace Kuoste.LidarWorld.Terrain
             _sDirectoryIntermediate = sDirectoryIntermediate;
             _sVersion = sVersion;
 
-            _consumingThread = new Thread(() =>
+            _triangulationThread = new Thread(() =>
              {
                  ITileProvider tp = new TileCreator();
 
@@ -63,7 +63,7 @@ namespace Kuoste.LidarWorld.Terrain
                  }
              });
 
-            _consumingThread.Start();
+            _triangulationThread.Start();
         }
         public TileStatus GetTile(string s1km1kmTileName)
         {
@@ -77,8 +77,8 @@ namespace Kuoste.LidarWorld.Terrain
 
             // Use NlsTileNamer to get the upper level 3km x 3 km tile name
             const int iWantedSizeInMeters = 3000;
-            NlsTileNamer.Decode(s1km1kmTileName, out Envelope extent);
-            string s3km3kmTileName = NlsTileNamer.Encode((int)extent.MinX, (int)extent.MinY, iWantedSizeInMeters);
+            TileNamer.Decode(s1km1kmTileName, out Envelope extent);
+            string s3km3kmTileName = TileNamer.Encode((int)extent.MinX, (int)extent.MinY, iWantedSizeInMeters);
 
             // Check if we have the laz file
             if (_lasFilesNotFound.Contains(s3km3kmTileName))
