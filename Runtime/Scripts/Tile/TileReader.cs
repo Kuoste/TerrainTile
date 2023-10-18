@@ -1,38 +1,52 @@
 using LasUtility.Common;
 using LasUtility.VoxelGrid;
-using NetTopologySuite.Geometries;
-using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileReader : ITileProvider
+    public class TileReader : ITileBuilder
     {
-        public List<Polygon> GetBuildings(string sDirectory, string sMapTileName, string sVersion)
+        private string _sIntermediateDirectory;
+
+        public void BuildBuildingPolygons(Tile tile)
         {
             throw new System.NotImplementedException();
         }
 
-        public Dictionary<string, HeightMap> GetBuildingsAndRoads(string sDirectory, string sMapTileName, string sVersion)
+        public void BuildRoadRaster(Tile tile)
         {
-            throw new System.NotImplementedException();
+            string sFullFilename = Path.Combine(_sIntermediateDirectory, tile.FilenameRoads);
+
+            tile.Roads = HeightMap.CreateFromAscii(sFullFilename);
+
+            Interlocked.Increment(ref tile.CompletedCount);
         }
 
-        public Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string sMapTileName, string sVersion)
+        public void BuildDemAndDsmPointCloud(Tile tile)
         {
-            string sFilename = Path.Combine(sDirectory, sMapTileName + "_v" + sVersion + ".obj");
+            string sFullFilename = Path.Combine(_sIntermediateDirectory, tile.FilenameGrid);
 
-            Dictionary<string, VoxelGrid> grids = new();
+            tile.TerrainGrid = VoxelGrid.Deserialize(sFullFilename);
 
-            if (File.Exists(sFilename))
-            {
-                grids.Add(sMapTileName, VoxelGrid.Deserialize(sFilename));
-            }
-
-            return grids;
+            Interlocked.Increment(ref tile.CompletedCount);
         }
 
-        public Dictionary<string, HeightMap> GetTerrainFeatures(string sDirectory, string sMapTileName, string sVersion)
+        public void BuildTerrainTypeRaster(Tile tile)
+        {
+            string sFullFilename = Path.Combine(_sIntermediateDirectory, tile.FilenameTerrainType);
+
+            tile.TerrainType = HeightMap.CreateFromAscii(sFullFilename);
+
+            Interlocked.Increment(ref tile.CompletedCount);
+        }
+
+        public void SetIntermediateDirectory(string sDirectory)
+        {
+            _sIntermediateDirectory = sDirectory;
+        }
+
+        public void SetOriginalDirectory(string sDirectory)
         {
             throw new System.NotImplementedException();
         }

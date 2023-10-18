@@ -7,28 +7,22 @@ using LasUtility.VoxelGrid;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO.Esri;
-using NetTopologySuite.IO.Esri.Shapefiles.Readers;
 using System;
-using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Unity.VisualScripting;
+using System.Threading;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileCreator : ITileProvider
+    public class TileCreator : ITileBuilder
     {
         /// <summary>
         /// Currently only the 3x3 km2 las tiles are supported.
         /// </summary>
         const int m_iSupportedInputTileWidth = 3000;
-
-        /// <summary>
-        /// 3x3 km2 las tiles are divided into 9 parts for triangulation. This makes the length of the edge 1 km.
-        /// </summary>
-        const int m_iEdgeLength = 1000;
 
         /// <summary>
         /// Unity supports heightmap resolutions as (2^n + 1) so 1025 is the closest to 1 km
@@ -43,36 +37,84 @@ namespace Kuoste.LidarWorld.Tile
         /// <summary>
         /// Total triangulation edge length
         /// </summary>
-        const int m_iTotalEdgeLength = m_iEdgeLength + 2 * m_iOverlap;
+        const int m_iTotalEdgeLength = Tile.EdgeLength + 2 * m_iOverlap;
 
         /// <summary>
         /// Unity handles heightmap values as coefficients between 0.0 and 1.0. Use this divider to make sure heights are in that range.
         /// </summary>
         const int m_iHeightDivider = 1000;
 
-        public Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string s3km3kmTileName, string sVersion)
-        {
-            TileNamer.Decode(s3km3kmTileName, out Envelope area);
+        private string _sDirectoryOriginal;
+        private string _sDirectoryIntermediate;
 
-            if (area == null || area.Width != m_iSupportedInputTileWidth)
+        /// <summary>
+        /// Keep track of the las files so that we don't try to process the same file multiple times.
+        /// </summary>
+        private ConcurrentDictionary<string, bool> _3kmDemDsmDone = new();
+
+        /// <summary>
+        /// Keep track of the roads shapefiles so that we don't try to process the same file multiple times.
+        /// </summary>
+        private ConcurrentDictionary<string, bool> _12kmRoadsDone = new();
+
+        /// <summary>
+        /// Keep track of the buildings shapefiles so that we don't try to process the same file multiple times.
+        /// </summary>
+        private ConcurrentDictionary<string, bool> _12kmBuildingsDone = new();
+
+        /// <summary>
+        /// Keep track of the terrain type shapefiles so that we don't try to process the same file multiple times.
+        /// </summary>
+        private ConcurrentDictionary<string, bool> _12kmTerrainTypesDone = new();
+
+        ///// <summary>
+        ///// Keep track of the received tiles so that we can update the tile features when the tile is ready.
+        ///// </summary>
+        //private ConcurrentDictionary<string, Tile> _tilesReceived = new();
+
+        public void BuildDemAndDsmPointCloud(Tile tile)
+        {
+            // Get 3km 3km tilename
+            TileNamer.Decode(tile.Name, out Envelope bounds);
+            string s3km3kmTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, m_iSupportedInputTileWidth);
+
+            //_tilesReceived.TryAdd(tile.Name, tile);
+
+            // Check if the tile is already being processed and add it to the dictionary if not.
+            if (true == _3kmDemDsmDone.TryGetValue(s3km3kmTileName, out bool bIsCompleted))
             {
-                throw new Exception("Only 3 km x 3 km laz tiles are supported.");
+                if (bIsCompleted)
+                {
+                    // Las file is already processed, so just update the tile.
+                    tile.TerrainGrid = VoxelGrid.Deserialize(Path.Combine(_sDirectoryIntermediate, tile.FilenameGrid));
+                    Interlocked.Increment(ref tile.CompletedCount);
+
+                    Debug.Log($"DemAndDsmPointCloud {s3km3kmTileName} for {tile.Name} is already completed.");
+                }
+                else
+                {
+                    Debug.Log($"DemAndDsmPointCloud {s3km3kmTileName} for {tile.Name} is under work.");
+                }
+
+                return;
             }
+
+            _3kmDemDsmDone.TryAdd(s3km3kmTileName, false);
 
             ILasFileReader reader = new LasZipFileReader();
 
-            string sFilename = Path.Combine(sDirectory, s3km3kmTileName + ".laz");
+            string sFilename = Path.Combine(_sDirectoryOriginal, s3km3kmTileName + ".laz");
 
             reader.ReadHeader(sFilename);
 
-            Stopwatch swTotal = Stopwatch.StartNew();
+            Stopwatch sw = Stopwatch.StartNew();
 
             reader.OpenReader(sFilename);
 
             double dMaxGroundHeight = double.MinValue;
             LasPoint p;
 
-            int iSubmeshesPerEdge = (int)Math.Round((reader.MaxX - reader.MinX) / m_iEdgeLength);
+            int iSubmeshesPerEdge = (int)Math.Round((reader.MaxX - reader.MinX) / Tile.EdgeLength);
             int iSubmeshCount = (int)Math.Pow(iSubmeshesPerEdge, 2);
 
             SurfaceTriangulation[] triangulations = new SurfaceTriangulation[iSubmeshCount];
@@ -84,8 +126,7 @@ namespace Kuoste.LidarWorld.Tile
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
                 TileNamer.Decode(sSubmeshName, out Envelope extent);
 
-                grids[i] = VoxelGrid.CreateGrid(sSubmeshName, m_iUnityHeightmapResolution, m_iUnityHeightmapResolution, extent);
-                grids[i].Version = sVersion;
+                grids[i] = VoxelGrid.CreateGrid(m_iUnityHeightmapResolution, m_iUnityHeightmapResolution, extent);
 
                 triangulations[i] = new SurfaceTriangulation(m_iTotalEdgeLength, m_iTotalEdgeLength,
                     extent.MinX - m_iOverlap, extent.MinY - m_iOverlap,
@@ -103,8 +144,8 @@ namespace Kuoste.LidarWorld.Tile
                 // Get submesh indices
                 x -= reader.MinX;
                 y -= reader.MinY;
-                int ix = (int)x / m_iEdgeLength;
-                int iy = (int)y / m_iEdgeLength;
+                int ix = (int)x / Tile.EdgeLength;
+                int iy = (int)y / Tile.EdgeLength;
                 int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
 
                 // Classifications from
@@ -137,13 +178,13 @@ namespace Kuoste.LidarWorld.Tile
                     // Look if point is part of another submesh overlap area.
                     // Overlap is needed because otherwise adjacent triangulated surfaces have a gap in between.
 
-                    int iWholeMeshEdgeLength = m_iEdgeLength * iSubmeshesPerEdge;
+                    int iWholeMeshEdgeLength = Tile.EdgeLength * iSubmeshesPerEdge;
                     int iOverlapInMeters = m_iOverlap;
-                    float dOverlapPercentageLowBound = (float)iOverlapInMeters / m_iEdgeLength;
+                    float dOverlapPercentageLowBound = (float)iOverlapInMeters / Tile.EdgeLength;
                     float dOverlapPercentageHighBound = 1 - dOverlapPercentageLowBound;
 
-                    float dPercentageX = (float)x / m_iEdgeLength - ix;
-                    float dPercentageY = (float)y / m_iEdgeLength - iy;
+                    float dPercentageX = (float)x / Tile.EdgeLength - ix;
+                    float dPercentageY = (float)y / Tile.EdgeLength - iy;
 
                     if (dPercentageX < dOverlapPercentageLowBound || dPercentageX > dOverlapPercentageHighBound ||
                         dPercentageY < dOverlapPercentageLowBound || dPercentageY > dOverlapPercentageHighBound)
@@ -160,8 +201,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageX < dOverlapPercentageLowBound)
                         {
-                            ix = (int)(x - iOverlapInMeters) / m_iEdgeLength;
-                            iy = (int)y / m_iEdgeLength;
+                            ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
+                            iy = (int)y / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -172,7 +213,7 @@ namespace Kuoste.LidarWorld.Tile
                             if (dPercentageY < dOverlapPercentageLowBound)
                             {
                                 //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y - iOverlapInMeters) / m_iEdgeLength;
+                                iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -180,7 +221,7 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / m_iEdgeLength;
+                                ix = (int)x / Tile.EdgeLength;
                                 //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -193,7 +234,7 @@ namespace Kuoste.LidarWorld.Tile
                             if (dPercentageY > dOverlapPercentageHighBound)
                             {
                                 //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y + iOverlapInMeters) / m_iEdgeLength;
+                                iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -201,7 +242,7 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / m_iEdgeLength;
+                                ix = (int)x / Tile.EdgeLength;
                                 //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -216,8 +257,8 @@ namespace Kuoste.LidarWorld.Tile
                         if (dPercentageX > dOverlapPercentageHighBound)
                         {
 
-                            ix = (int)(x + iOverlapInMeters) / m_iEdgeLength;
-                            iy = (int)y / m_iEdgeLength;
+                            ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
+                            iy = (int)y / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -228,7 +269,7 @@ namespace Kuoste.LidarWorld.Tile
                             if (dPercentageY < dOverlapPercentageLowBound)
                             {
                                 //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y - iOverlapInMeters) / m_iEdgeLength;
+                                iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -236,7 +277,7 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / m_iEdgeLength;
+                                ix = (int)x / Tile.EdgeLength;
                                 //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -249,7 +290,7 @@ namespace Kuoste.LidarWorld.Tile
                             if (dPercentageY > dOverlapPercentageHighBound)
                             {
                                 //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y + iOverlapInMeters) / m_iEdgeLength;
+                                iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -257,7 +298,7 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / m_iEdgeLength;
+                                ix = (int)x / Tile.EdgeLength;
                                 //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -271,8 +312,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageY < dOverlapPercentageLowBound)
                         {
-                            ix = (int)x / m_iEdgeLength;
-                            iy = (int)(y - iOverlapInMeters) / m_iEdgeLength;
+                            ix = (int)x / Tile.EdgeLength;
+                            iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -282,7 +323,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX < dOverlapPercentageLowBound)
                             {
-                                ix = (int)(x - iOverlapInMeters) / m_iEdgeLength;
+                                ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
                                 //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -292,7 +333,7 @@ namespace Kuoste.LidarWorld.Tile
                                 }
 
                                 //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / m_iEdgeLength;
+                                iy = (int)y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -303,7 +344,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX > dOverlapPercentageHighBound)
                             {
-                                ix = (int)(x + iOverlapInMeters) / m_iEdgeLength;
+                                ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
                                 //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -313,7 +354,7 @@ namespace Kuoste.LidarWorld.Tile
                                 }
 
                                 //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / m_iEdgeLength;
+                                iy = (int)y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -325,8 +366,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageY > dOverlapPercentageHighBound)
                         {
-                            ix = (int)x / m_iEdgeLength;
-                            iy = (int)(y + iOverlapInMeters) / m_iEdgeLength;
+                            ix = (int)x / Tile.EdgeLength;
+                            iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -336,7 +377,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX < dOverlapPercentageLowBound)
                             {
-                                ix = (int)(x - iOverlapInMeters) / m_iEdgeLength;
+                                ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
                                 //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -346,7 +387,7 @@ namespace Kuoste.LidarWorld.Tile
                                 }
 
                                 //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / m_iEdgeLength;
+                                iy = (int)y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -357,7 +398,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX > dOverlapPercentageHighBound)
                             {
-                                ix = (int)(x + iOverlapInMeters) / m_iEdgeLength;
+                                ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
                                 //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
@@ -367,7 +408,7 @@ namespace Kuoste.LidarWorld.Tile
                                 }
 
                                 //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / m_iEdgeLength;
+                                iy = (int)y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -388,11 +429,9 @@ namespace Kuoste.LidarWorld.Tile
 
             reader.CloseReader();
 
-            Debug.Log("Reading LAZ file took " + swTotal.Elapsed + " ms");
-
             for (int i = 0; i < iSubmeshCount; i++)
             {
-                Stopwatch sw = Stopwatch.StartNew();
+                Stopwatch sw2 = Stopwatch.StartNew();
 
                 SurfaceTriangulation tri = triangulations[i];
                 VoxelGrid grid = grids[i];
@@ -405,91 +444,156 @@ namespace Kuoste.LidarWorld.Tile
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
                 TileNamer.Decode(sSubmeshName, out Envelope env);
 
-                double dEspsilon = 0.00001;
                 grid.SetMissingHeightsFromTriangulation(tri,
-                    env.MinX, env.MinY,
-                    env.MaxX - dEspsilon, env.MaxY - dEspsilon,
+                    (int)env.MinX, (int)env.MinY, (int)env.MaxX, (int)env.MaxY,
                     out int iMissBefore, out int iMissAfter);
 
                 // Free triangulation asap so we dont run out of memory.
                 tri.Clear();
 
-                Debug.Log($"Triangulation {i} took {sw.Elapsed} ms. Empty cells before {iMissBefore}, after {iMissAfter}.");
+                sw2.Stop();
+                Debug.Log($"Triangulation {i} took {sw2.Elapsed} ms. Empty cells before {iMissBefore}, after {iMissAfter}.");
             }
 
-            Dictionary<string, VoxelGrid> gridsByName = new();
-
-            foreach (VoxelGrid grid in grids)
+            for (int i = 0; i < iSubmeshCount; i++)
             {
-                gridsByName.Add(grid.Name, grid);
+                string s1km1kmTilename = s3km3kmTileName + "_" + (i + 1).ToString();
+
+                Tile t = new() { Name = s1km1kmTilename, Version = tile.Version };
+
+                // Save grid to filesystem for future use
+                grids[i].Serialize(Path.Combine(_sDirectoryIntermediate, t.FilenameGrid));
             }
 
-            Debug.Log($"Finished! Total preprocessing time for tile {s3km3kmTileName} was {swTotal.Elapsed.TotalSeconds} seconds.");
-
-            return gridsByName;
-        }
-
-        public Dictionary<string, HeightMap> GetTerrainFeatures(string sDirectory, string sMapTileName, string sVersion)
-        {
-            // Get topographic db tile name
-            TileNamer.Decode(sMapTileName, out Envelope bounds);
-            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
-
-            Rasteriser rasteriser = new();
-            rasteriser.InitializeRaster(bounds);
-            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
-
-            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
-            rasteriser.AddShapefile(sFullFilename);
-
-            // Split 12km x 12 km raster into 1x1 km2 tiles
-            Dictionary<string, HeightMap> heightMaps = new();
+            _3kmDemDsmDone.TryUpdate(s3km3kmTileName, true, false);
             
-            for (int x = 0; x < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
-            {
-                for (int y = 0; y < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
-                {
-                    heightMaps.Add(TileNamer.Encode(x, y, m_iEdgeLength), rasteriser.Crop(x, y, x + m_iEdgeLength, y + m_iEdgeLength));
-                }
-            }
-
-            return heightMaps;
+            Debug.Log($"Las processing finished! Total time for tile {s3km3kmTileName} was {sw.Elapsed.TotalSeconds} seconds.");
         }
 
-        public Dictionary<string, HeightMap> GetBuildingsAndRoads(string sDirectory, string sMapTileName, string sVersion)
+        public void BuildTerrainTypeRaster(Tile tile)
         {
             // Get topographic db tile name
-            TileNamer.Decode(sMapTileName, out Envelope bounds);
+            TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+            TileNamer.Decode(s12km12kmMapTileName, out bounds);
+
+            // Check if the tile is already being processed and add it to the dictionary if not.
+            if (true == _12kmTerrainTypesDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
+            {
+                if (bIsCompleted)
+                {
+                    // Shapefile is already processed, so just update the tile.
+                    tile.TerrainType = HeightMap.CreateFromAscii(Path.Combine(_sDirectoryIntermediate, tile.FilenameTerrainType));
+                    Interlocked.Increment(ref tile.CompletedCount);
+
+                    Debug.Log($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
+                }
+                else
+                {
+                    Debug.Log($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} is under work.");
+                }
+
+                return;
+            }
+
+            _12kmTerrainTypesDone.TryAdd(s12km12kmMapTileName, false);
 
             Rasteriser rasteriser = new();
             rasteriser.InitializeRaster(bounds);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterLineClassesToRasterValues);
 
-            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
+            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             rasteriser.AddShapefile(sFullFilename);
 
-            // Split 12km x 12 km raster into 1x1 km2 tiles
-            Dictionary<string, HeightMap> heightMaps = new();
 
-            for (int x = 0; x < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
             {
-                for (int y = 0; y < TopographicDb.iMapTileEdgeLengthInMeters; x += m_iEdgeLength)
+                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
                 {
-                    heightMaps.Add(TileNamer.Encode(x, y, m_iEdgeLength), rasteriser.Crop(x, y, x + m_iEdgeLength, y + m_iEdgeLength));
+                    Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
+
+                    // Save to filesystem
+                    rasteriser.WriteAsAscii(Path.Combine(_sDirectoryIntermediate, t.FilenameTerrainType), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
                 }
             }
 
-            return heightMaps;
+            _12kmTerrainTypesDone.TryUpdate(s12km12kmMapTileName, true, false);
         }
 
-        public List<Polygon> GetBuildings(string sDirectory, string sMapTileName, string sVersion)
+        public void BuildRoadRaster(Tile tile)
         {
             // Get topographic db tile name
-            TileNamer.Decode(sMapTileName, out Envelope bounds);
+            TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+            TileNamer.Decode(s12km12kmMapTileName, out bounds);
 
-            string sFullFilename = Path.Combine(sDirectory, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+            // Check if the tile is already being processed and add it to the dictionary if not.
+            if (true == _12kmRoadsDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
+            {
+                if (bIsCompleted)
+                {
+                    // Shapefile is already processed, so just update the tile.
+                    tile.Roads = HeightMap.CreateFromAscii(Path.Combine(_sDirectoryIntermediate, tile.FilenameRoads));
+                    Interlocked.Increment(ref tile.CompletedCount);
+
+                    Debug.Log($"RoadRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
+                }
+                else
+                {
+                    Debug.Log($"RoadRaster {s12km12kmMapTileName} for {tile.Name} is under work.");
+                }
+
+                return;
+            }
+
+            _12kmRoadsDone.TryAdd(s12km12kmMapTileName, false);
+
+            Rasteriser rasteriser = new();
+            rasteriser.InitializeRaster(bounds);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
+
+            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
+            rasteriser.AddShapefile(sFullFilename);
+
+            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
+            {
+                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
+                {
+                    Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
+
+                    // Save to filesystem
+                    rasteriser.WriteAsAscii(Path.Combine(_sDirectoryIntermediate, t.FilenameRoads), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
+                }
+            }
+
+            _12kmRoadsDone.TryUpdate(s12km12kmMapTileName, true, false);
+        }
+
+        public void BuildBuildingPolygons(Tile tile)
+        {
+            throw new NotImplementedException();
+
+            // Get topographic db tile name
+            TileNamer.Decode(tile.Name, out Envelope bounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+            TileNamer.Decode(s12km12kmMapTileName, out bounds);
+
+
+            // Check if the tile is already being processed and add it to the dictionary if not.
+            if (true == _12kmBuildingsDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
+            {
+                if (bIsCompleted)
+                    Debug.Log($"Tile {s12km12kmMapTileName} for {tile.Name} is already completed.");
+                else
+                    Debug.Log($"Tile {s12km12kmMapTileName} for {tile.Name} is already under work.");
+
+                return;
+            }
+
+            _12kmBuildingsDone.TryAdd(s12km12kmMapTileName, false);
+
+            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
 
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
             List<Polygon> polygons = new();
@@ -504,7 +608,28 @@ namespace Kuoste.LidarWorld.Tile
                 }
             }
 
-            return polygons;
+            // tallenna polygonit filuun missa muodossa?
+
+
+            // Mark as completed
+            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
+            {
+                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
+                {
+                }
+            }
+
+            _12kmBuildingsDone.TryUpdate(s12km12kmMapTileName, true, false);
+        }
+
+        public void SetOriginalDirectory(string sDirectory)
+        {
+            _sDirectoryOriginal = sDirectory;
+        }
+
+        public void SetIntermediateDirectory(string sDirectory)
+        {
+            _sDirectoryIntermediate = sDirectory;
         }
     }
 }

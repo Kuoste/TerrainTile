@@ -6,14 +6,17 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public interface ITileProvider
+    public interface ITileBuilder
     {
-        Dictionary<string, VoxelGrid> GetTerrain(string sDirectory, string sMapTileName, string sVersion);
+        void SetOriginalDirectory(string sDirectory);
+        void SetIntermediateDirectory(string sDirectory);
 
-        Dictionary<string, HeightMap> GetBuildingsAndRoads(string sDirectory, string sMapTileName, string sVersion);
+        void BuildDemAndDsmPointCloud(Tile tile);
 
-        Dictionary<string, HeightMap> GetTerrainFeatures(string sDirectory, string sMapTileName, string sVersion);
+        void BuildRoadRaster(Tile tile);
 
-        List<Polygon> GetBuildings(string sDirectory, string sMapTileName, string sVersion);
+        void BuildTerrainTypeRaster(Tile tile);
+
+        void BuildBuildingPolygons(Tile tile);
     }
 }
