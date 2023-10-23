@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -48,6 +49,8 @@ namespace Kuoste.LidarWorld.Tile
             {
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
+                    Stopwatch sw = Stopwatch.StartNew();
+
                     string sFullFilename = Path.Combine(_sDirectoryIntermediate, tile.FilenameGrid);
 
                     if (File.Exists(sFullFilename))
@@ -60,6 +63,9 @@ namespace Kuoste.LidarWorld.Tile
                         // Create grid from las files
                         creator.BuildDemAndDsmPointCloud(tile);
                     }
+
+                    sw.Stop();
+                    Debug.Log($"Tile {tile.Name} built in {sw.ElapsedMilliseconds} ms.");
                 }
 
                 Thread.Sleep(1000);

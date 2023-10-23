@@ -29,6 +29,8 @@ namespace Kuoste.LidarWorld.Tile
         /// </summary>
         const int m_iUnityHeightmapResolution = 1025;
 
+        const int m_iUnityAlphamapResolution = 1024;
+
         /// <summary>
         /// Use some overlap in triangulations or else the triangulations won't be complete on edges
         /// </summary>
@@ -475,7 +477,7 @@ namespace Kuoste.LidarWorld.Tile
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
-            TileNamer.Decode(s12km12kmMapTileName, out bounds);
+            TileNamer.Decode(s12km12kmMapTileName, out Envelope bounds12km);
 
             // Check if the tile is already being processed and add it to the dictionary if not.
             if (true == _12kmTerrainTypesDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
@@ -499,7 +501,8 @@ namespace Kuoste.LidarWorld.Tile
             _12kmTerrainTypesDone.TryAdd(s12km12kmMapTileName, false);
 
             Rasteriser rasteriser = new();
-            rasteriser.InitializeRaster(bounds);
+            int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * m_iUnityAlphamapResolution;
+            rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterLineClassesToRasterValues);
 
@@ -507,9 +510,9 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.AddShapefile(sFullFilename);
 
 
-            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
+            for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
             {
-                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
+                for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
@@ -526,7 +529,7 @@ namespace Kuoste.LidarWorld.Tile
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
-            TileNamer.Decode(s12km12kmMapTileName, out bounds);
+            TileNamer.Decode(s12km12kmMapTileName, out Envelope bounds12km);
 
             // Check if the tile is already being processed and add it to the dictionary if not.
             if (true == _12kmRoadsDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
@@ -550,15 +553,16 @@ namespace Kuoste.LidarWorld.Tile
             _12kmRoadsDone.TryAdd(s12km12kmMapTileName, false);
 
             Rasteriser rasteriser = new();
-            rasteriser.InitializeRaster(bounds);
+            int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * m_iUnityAlphamapResolution;
+            rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
 
             string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
             rasteriser.AddShapefile(sFullFilename);
 
-            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
+            for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
             {
-                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
+                for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
