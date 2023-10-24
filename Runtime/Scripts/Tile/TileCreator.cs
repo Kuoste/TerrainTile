@@ -44,7 +44,7 @@ namespace Kuoste.LidarWorld.Tile
         /// <summary>
         /// Unity handles heightmap values as coefficients between 0.0 and 1.0. Use this divider to make sure heights are in that range.
         /// </summary>
-        const int m_iHeightDivider = 1000;
+        const int m_iHeightDivider = 600;
 
         private string _sDirectoryOriginal;
         private string _sDirectoryIntermediate;

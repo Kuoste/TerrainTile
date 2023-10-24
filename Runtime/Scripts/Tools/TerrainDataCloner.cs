@@ -22,10 +22,6 @@ namespace Kuoste.LidarWorld.Tools
 
             TerrainData dup = new();
 
-            //sw.Stop();
-            //UnityEngine.Debug.Log($"TerrainData.Clone new took {sw.ElapsedMilliseconds} ms");
-            //sw.Restart();
-
             dup.alphamapResolution = original.alphamapResolution;
             dup.baseMapResolution = original.baseMapResolution;
 
@@ -36,10 +32,6 @@ namespace Kuoste.LidarWorld.Tools
             sw.Restart();
 
             dup.SetDetailResolution(original.detailResolution, original.detailResolutionPerPatch);
-
-            //sw.Stop();
-            //UnityEngine.Debug.Log($"TerrainData.Clone SetDetailResolution took {sw.ElapsedMilliseconds} ms");
-            //sw.Restart();
 
             dup.heightmapResolution = original.heightmapResolution;
             dup.size = original.size;
@@ -52,10 +44,6 @@ namespace Kuoste.LidarWorld.Tools
             dup.wavingGrassSpeed = original.wavingGrassSpeed;
             dup.wavingGrassStrength = original.wavingGrassStrength;
             dup.wavingGrassTint = original.wavingGrassTint;
-
-            //sw.Stop();
-            //UnityEngine.Debug.Log($"TerrainData.Clone terrainLayers took {sw.ElapsedMilliseconds} ms");
-            //sw.Restart();
 
             dup.SetAlphamaps(0, 0, original.GetAlphamaps(0, 0, original.alphamapWidth, original.alphamapHeight));
 
