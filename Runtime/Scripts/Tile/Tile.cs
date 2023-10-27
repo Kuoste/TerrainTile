@@ -34,6 +34,7 @@ namespace Kuoste.LidarWorld.Tile
         public List<CoordinateZ> Trees;
         public List<Vector3[]> BuildingVertices;
         public List<int[]> BuildingTriangles;
+        public List<int> BuildingSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
 
         public int CompletedCount;
 

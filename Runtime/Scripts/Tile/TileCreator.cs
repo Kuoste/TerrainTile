@@ -619,6 +619,7 @@ namespace Kuoste.LidarWorld.Tile
 
             tile.BuildingTriangles = new();
             tile.BuildingVertices = new();
+            tile.BuildingSubmeshSeparator = new();
 
             foreach (Feature f in features)
             {
@@ -716,6 +717,33 @@ namespace Kuoste.LidarWorld.Tile
                         continue;
                     }
 
+                    // Add wall vertices
+                    for (int i = 1; i < buildingExterior.NumPoints; i++)
+                    {
+                        Coordinate c0 = buildingExterior.GetCoordinateN(i - 1);
+                        Coordinate c1 = buildingExterior.GetCoordinateN(i);
+
+                        // Get ground height at the coordinate
+                        float fHeight0 = (float)tile.TerrainGrid.GetHeight(c0.X, c0.Y);
+                        float fHeight1 = (float)tile.TerrainGrid.GetHeight(c1.X, c1.Y);
+
+                        // Create a quad between the two points
+                        int iVertexStart = buildingVertices.Count;
+                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fHeight0 * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fHeight1 * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
+
+                        buildingTriangles.Add(iVertexStart);
+                        buildingTriangles.Add(iVertexStart + 1);
+                        buildingTriangles.Add(iVertexStart + 2);
+                        buildingTriangles.Add(iVertexStart);
+                        buildingTriangles.Add(iVertexStart + 2);
+                        buildingTriangles.Add(iVertexStart + 3);
+                    }
+
+                    tile.BuildingSubmeshSeparator.Add(buildingTriangles.Count);
+
                     // Add roof vertices
                     int iTriangleCount = tri.GetTriangleCount();
                     for (int i = 0; i < iTriangleCount; i++)
@@ -746,32 +774,6 @@ namespace Kuoste.LidarWorld.Tile
                         buildingTriangles.Add(iVertexStart);
                         buildingTriangles.Add(iVertexStart + 1);
                         buildingTriangles.Add(iVertexStart + 2);
-                    }
-
-
-                    // Add wall vertices
-                    for (int i = 1; i < buildingExterior.NumPoints; i++)
-                    {
-                        Coordinate c0 = buildingExterior.GetCoordinateN(i - 1);
-                        Coordinate c1 = buildingExterior.GetCoordinateN(i);
-
-                        // Get ground height at the coordinate
-                        float fHeight0 = (float)tile.TerrainGrid.GetHeight(c0.X, c0.Y);
-                        float fHeight1 = (float)tile.TerrainGrid.GetHeight(c1.X, c1.Y);
-
-                        // Create a quad between the two points
-                        int iVertexStart = buildingVertices.Count;
-                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fHeight0 * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fHeight1 * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
-
-                        buildingTriangles.Add(iVertexStart);
-                        buildingTriangles.Add(iVertexStart + 1);
-                        buildingTriangles.Add(iVertexStart + 2);
-                        buildingTriangles.Add(iVertexStart);
-                        buildingTriangles.Add(iVertexStart + 2);
-                        buildingTriangles.Add(iVertexStart + 3);
                     }
 
 

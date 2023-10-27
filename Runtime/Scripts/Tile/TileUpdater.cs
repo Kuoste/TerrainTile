@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
@@ -188,13 +189,21 @@ namespace Kuoste.LidarWorld.Tile
                     triangles = _tile.BuildingTriangles[i]
                 };
 
+                mesh.subMeshCount = 2;
+                mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
+                mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
+
                 mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
 
                 GameObject go = new("Building");
                 go.AddComponent<MeshFilter>().mesh = mesh;
-                Material mat = Resources.Load<Material>("Materials/BuildingWall_Mat");
-                go.AddComponent<MeshRenderer>().material = mat;
+                go.AddComponent<MeshRenderer>().materials = new Material[]
+                {
+                    Resources.Load<Material>("Materials/BuildingWall_Mat"),
+                    Resources.Load<Material>("Materials/BuildingRoof_Mat")
+                };
+
                 go.transform.parent = transform;
             }
         }
