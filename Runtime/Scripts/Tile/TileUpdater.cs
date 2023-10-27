@@ -193,7 +193,8 @@ namespace Kuoste.LidarWorld.Tile
 
                 GameObject go = new("Building");
                 go.AddComponent<MeshFilter>().mesh = mesh;
-                go.AddComponent<MeshRenderer>();//.material = Resources.Load<Material>("Materials/Building");
+                Material mat = Resources.Load<Material>("Materials/BuildingWall_Mat");
+                go.AddComponent<MeshRenderer>().material = mat;
                 go.transform.parent = transform;
             }
         }

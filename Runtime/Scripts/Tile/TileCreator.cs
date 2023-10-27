@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
@@ -642,15 +643,15 @@ namespace Kuoste.LidarWorld.Tile
                 // Go through polygons in the multipolygon
                 for (int j = 0; j < mp.NumGeometries; j++)
                 {
-                    Polygon polygon = (Polygon)mp.GetGeometryN(j);
-                    LineString exterior = polygon.ExteriorRing;
+                    Polygon buildingPolygon = (Polygon)mp.GetGeometryN(j);
+                    LineString buildingExterior = buildingPolygon.ExteriorRing;
 
                     // Try to find the building height from the corners of the polygon
                     float fBuildingHeights = 0f;
                     int iBuildingHeightCount = 0;
-                    for (int i = 0; i < exterior.NumPoints; i++)
+                    for (int i = 0; i < buildingExterior.NumPoints; i++)
                     {
-                        Coordinate c = exterior.GetCoordinateN(i);
+                        Coordinate c = buildingExterior.GetCoordinateN(i);
 
                         // Get building height at the coordinate
                         tile.TerrainGrid.GetGridIndexes(c.X, c.Y, out int iX, out int iY);
@@ -663,46 +664,32 @@ namespace Kuoste.LidarWorld.Tile
                         }
                     }
 
-                    //if (fBuildingHeight == float.MinValue)
-                    //{
-                    //    // Building height was not found, so use default height
-                    //    fBuildingHeight = (float)tile.TerrainGrid.GetHeight(mp.Centroid.X, mp.Centroid.Y) + 10 / tile.DemMaxHeight;
-                    //}
-
                     // Create roof triangulation
 
-                    // Move bounding box closer to origo to get triangulation working
-                    Envelope bBox = mp.EnvelopeInternal;
+                    // Move bounds to next integer coordinates
+                    Envelope buildingBounds = new(
+                        Math.Floor(buildingPolygon.EnvelopeInternal.MinX),
+                        Math.Ceiling(buildingPolygon.EnvelopeInternal.MaxX),
+                        Math.Floor(buildingPolygon.EnvelopeInternal.MinY),
+                        Math.Ceiling(buildingPolygon.EnvelopeInternal.MaxY));
 
+                    // For triangulation, move coordinates to origo
+                    SurfaceTriangulation tri = new(
+                        (int)(buildingBounds.MaxX - buildingBounds.MinX),
+                        (int)(buildingBounds.MaxY - buildingBounds.MinY),
+                        0, 0, buildingBounds.MaxX - buildingBounds.MinX, 
+                        buildingBounds.MaxY - buildingBounds.MinY);
 
-                    Envelope bBoxIntegerShifted = new((int)Math.Floor(bBox.MinX) - bBox.MinX,
-                        (int)Math.Ceiling(bBox.MaxX) - bBox.MinX,
-                        (int)Math.Floor(bBox.MinY) - bBox.MinY,
-                        (int)Math.Ceiling(bBox.MaxY) - bBox.MinY);
-
-                    //                Envelope bBoxIntegerShifted = new((int)Math.Floor(bBox.MinX),
-                    //(int)Math.Ceiling(bBox.MaxX),
-                    //(int)Math.Floor(bBox.MinY) ,
-                    //(int)Math.Ceiling(bBox.MaxY));
-
-
-                    SurfaceTriangulation tri = new((int)(bBoxIntegerShifted.MaxX - bBoxIntegerShifted.MinX), 
-                                                   (int)(bBoxIntegerShifted.MaxY - bBoxIntegerShifted.MinY),
-                                                   bBoxIntegerShifted.MinX, bBoxIntegerShifted.MinY, 
-                                                   bBoxIntegerShifted.MaxX, bBoxIntegerShifted.MaxY);
-
-
-                    for (int x = (int)bBoxIntegerShifted.MinX; x < bBoxIntegerShifted.MaxX ; x++)
+                    for (int x = (int)buildingBounds.MinX; x <= buildingBounds.MaxX ; x++)
                     {
-                        for (int y = (int)bBoxIntegerShifted.MinY; y < bBoxIntegerShifted.MaxY; y++)
+                        for (int y = (int)buildingBounds.MinY; y <= buildingBounds.MaxY; y++)
                         {
-                            tile.TerrainGrid.GetGridIndexes(x + bBox.MinX, y + bBox.MinY, out int iRow, out int jCol);
-                            //tile.TerrainGrid.GetGridIndexes(x, y, out int iRow, out int jCol);
+                            tile.TerrainGrid.GetGridIndexes(x, y, out int iRow, out int jCol);
                             BinPoint bp = tile.TerrainGrid.GetHighestPointInClassRange(iRow, jCol, 0, byte.MaxValue);
 
-                            if (bp != null && polygon.Contains(new Point(x, y)))
+                            if (bp != null && buildingPolygon.Contains(new Point(x, y)))
                             {
-                                tri.AddPoint(new LasPoint() { x = x, y = y, z = bp.Z  });
+                                tri.AddPoint(new LasPoint() { x = x - buildingBounds.MinX, y = y - buildingBounds.MinY, z = bp.Z  });
 
                                 fBuildingHeights += bp.Z;
                                 iBuildingHeightCount++;
@@ -712,11 +699,11 @@ namespace Kuoste.LidarWorld.Tile
 
                     float fBuildingHeight = fBuildingHeights / iBuildingHeightCount;
 
-                    for (int i = 0; i < exterior.NumPoints; i++)
+                    // Add also building corners to get the full roof
+                    for (int i = 0; i < buildingExterior.NumPoints; i++)
                     {
-                        Coordinate c = exterior.GetCoordinateN(i);
-                        tri.AddPoint(new LasPoint() { x = c.X - bBox.MinX, y = c.Y - bBox.MinY, z = fBuildingHeight });
-                        //tri.AddPoint(new LasPoint() { x = c.X, y = c.Y, z = fBuildingHeight });
+                        Coordinate c = buildingExterior.GetCoordinateN(i);
+                        tri.AddPoint(new LasPoint() { x = c.X - buildingBounds.MinX, y = c.Y - buildingBounds.MinY, z = fBuildingHeight });
                     }
 
                     try
@@ -735,23 +722,26 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         tri.GetTriangle(i, out Coordinate c0, out Coordinate c1, out Coordinate c2);
 
-                        int iVertexStart = buildingVertices.Count;
-                        //buildingVertices.Add(new Vector3((float)c0.X, (float)(c0.Z * tile.DemMaxHeight), (float)c0.Y));
-                        //buildingVertices.Add(new Vector3((float)c1.X, (float)(c1.Z * tile.DemMaxHeight), (float)c1.Y));
-                        //buildingVertices.Add(new Vector3((float)c2.X, (float)(c2.Z * tile.DemMaxHeight), (float)c2.Y));
-
-                        Point center = new((c0.X + c1.X + c2.X) / 3 + bBox.MinX, (c0.Y + c1.Y + c2.Y) / 3 + bBox.MinY);
-                        if (false == polygon.Contains(center))
+                        // Skip extra segments on concave corners
+                        Point center = new((c0.X + c1.X + c2.X) / 3 + buildingBounds.MinX, (c0.Y + c1.Y + c2.Y) / 3 + buildingBounds.MinY);
+                        if (false == buildingPolygon.Contains(center))
                         {
                             continue;
                         }
 
-                        buildingVertices.Add(new Vector3((float)(c0.X + bBox.MinX - bounds.MinX), 
-                            (float)(c0.Z * tile.DemMaxHeight), (float)(c0.Y + bBox.MinY - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c1.X + bBox.MinX - bounds.MinX), 
-                            (float)(c1.Z * tile.DemMaxHeight), (float)(c1.Y + bBox.MinY - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c2.X + bBox.MinX - bounds.MinX), 
-                            (float)(c2.Z * tile.DemMaxHeight), (float)(c2.Y + bBox.MinY - bounds.MinY)));
+                        int iVertexStart = buildingVertices.Count;
+                        buildingVertices.Add(new Vector3((float)(c0.X + buildingBounds.MinX - bounds.MinX),
+                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c0.Y + buildingBounds.MinY - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X + buildingBounds.MinX - bounds.MinX),
+                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c1.Y + buildingBounds.MinY - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c2.X + buildingBounds.MinX - bounds.MinX),
+                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c2.Y + buildingBounds.MinY - bounds.MinY)));
+                        //buildingVertices.Add(new Vector3((float)(c0.X + buildingBounds.MinX - bounds.MinX), 
+                        //    (float)(c0.Z * tile.DemMaxHeight), (float)(c0.Y + buildingBounds.MinY - bounds.MinY)));
+                        //buildingVertices.Add(new Vector3((float)(c1.X + buildingBounds.MinX - bounds.MinX), 
+                        //    (float)(c1.Z * tile.DemMaxHeight), (float)(c1.Y + buildingBounds.MinY - bounds.MinY)));
+                        //buildingVertices.Add(new Vector3((float)(c2.X + buildingBounds.MinX - bounds.MinX), 
+                        //    (float)(c2.Z * tile.DemMaxHeight), (float)(c2.Y + buildingBounds.MinY - bounds.MinY)));
 
                         buildingTriangles.Add(iVertexStart);
                         buildingTriangles.Add(iVertexStart + 1);
@@ -760,10 +750,10 @@ namespace Kuoste.LidarWorld.Tile
 
 
                     // Add wall vertices
-                    for (int i = 1; i < exterior.NumPoints; i++)
+                    for (int i = 1; i < buildingExterior.NumPoints; i++)
                     {
-                        Coordinate c0 = exterior.GetCoordinateN(i - 1);
-                        Coordinate c1 = exterior.GetCoordinateN(i);
+                        Coordinate c0 = buildingExterior.GetCoordinateN(i - 1);
+                        Coordinate c1 = buildingExterior.GetCoordinateN(i);
 
                         // Get ground height at the coordinate
                         float fHeight0 = (float)tile.TerrainGrid.GetHeight(c0.X, c0.Y);
