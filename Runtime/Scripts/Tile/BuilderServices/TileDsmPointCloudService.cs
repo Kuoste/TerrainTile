@@ -13,22 +13,15 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileDsmPointCloudService : ITileBuilderService
     {
-        /// <summary>
-        /// Folder where data from Nls is found
-        /// </summary>
-        private readonly string _sDirectoryOriginal;
-
-        /// <summary>
-        ///  Folder for saving the rasterised / triangulated data
-        /// </summary>
-        private readonly string _sDirectoryIntermediate;
+        ITileBuilder _reader;
+        ITileBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
-        public TileDsmPointCloudService(string sDirectoryOriginal, string sDirectoryIntermediate)
+        public TileDsmPointCloudService(ITileBuilder reader, ITileBuilder creator)
         {
-            _sDirectoryOriginal = sDirectoryOriginal;
-            _sDirectoryIntermediate = sDirectoryIntermediate;
+            _reader = reader;
+            _creator = creator;
         }
 
         public void AddTile(Tile tile)
@@ -38,30 +31,23 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuilderThread()
         {
-            ITileBuilder reader = new TileReader();
-            ITileBuilder creator = new TileCreator();
-
-            reader.SetIntermediateDirectory(_sDirectoryIntermediate);
-            creator.SetIntermediateDirectory(_sDirectoryIntermediate);
-            creator.SetOriginalDirectory(_sDirectoryOriginal);
-
             while (true)
             {
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
                     Stopwatch sw = Stopwatch.StartNew();
 
-                    string sFullFilename = Path.Combine(_sDirectoryIntermediate, tile.FilenameGrid);
+                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameGrid);
 
                     if (File.Exists(sFullFilename))
                     {
                         // Load grid from filesystem
-                        reader.BuildDemAndDsmPointCloud(tile);
+                        _reader.BuildDemAndDsmPointCloud(tile);
                     }
                     else
                     {
                         // Create grid from las files
-                        creator.BuildDemAndDsmPointCloud(tile);
+                        _creator.BuildDemAndDsmPointCloud(tile);
                     }
 
                     sw.Stop();

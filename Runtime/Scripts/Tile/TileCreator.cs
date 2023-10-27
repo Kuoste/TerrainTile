@@ -7,6 +7,7 @@ using LasUtility.VoxelGrid;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO.Esri;
+using NetTopologySuite.IO.Esri.Shapefiles.Readers;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -41,18 +42,15 @@ namespace Kuoste.LidarWorld.Tile
         /// </summary>
         const int m_iTotalEdgeLength = Tile.EdgeLength + 2 * m_iOverlap;
 
-        /// <summary>
-        /// Unity handles heightmap values as coefficients between 0.0 and 1.0. Use this divider to make sure heights are in that range.
-        /// </summary>
-        const int m_iHeightDivider = 600;
+        public string DirectoryIntermediate { get; set; }
+        public string DirectoryOriginal { get; set; }
 
-        private string _sDirectoryOriginal;
-        private string _sDirectoryIntermediate;
+        public ConcurrentDictionary<string, bool> DemDsmDone => _1kmDemDsmDone;
 
         /// <summary>
-        /// Keep track of the las files so that we don't try to process the same file multiple times.
+        /// Keep track of the las files so that we don't try to process the same tile multiple times.
         /// </summary>
-        private ConcurrentDictionary<string, bool> _3kmDemDsmDone = new();
+        private ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
 
         /// <summary>
         /// Keep track of the roads shapefiles so that we don't try to process the same file multiple times.
@@ -60,9 +58,9 @@ namespace Kuoste.LidarWorld.Tile
         private ConcurrentDictionary<string, bool> _12kmRoadsDone = new();
 
         /// <summary>
-        /// Keep track of the buildings shapefiles so that we don't try to process the same file multiple times.
+        /// Keep track of the buildings shapefiles so that we don't try to process the same tile multiple times.
         /// </summary>
-        private ConcurrentDictionary<string, bool> _12kmBuildingsDone = new();
+        private ConcurrentDictionary<string, bool> _1kmBuildingsDone = new();
 
         /// <summary>
         /// Keep track of the terrain type shapefiles so that we don't try to process the same file multiple times.
@@ -76,36 +74,42 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildDemAndDsmPointCloud(Tile tile)
         {
-            // Get 3km 3km tilename
-            TileNamer.Decode(tile.Name, out Envelope bounds);
-            string s3km3kmTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, m_iSupportedInputTileWidth);
-
-            //_tilesReceived.TryAdd(tile.Name, tile);
-
-            // Check if the tile is already being processed and add it to the dictionary if not.
-            if (true == _3kmDemDsmDone.TryGetValue(s3km3kmTileName, out bool bIsCompleted))
+            // Check if the tile is already being processed
+            if (true == _1kmDemDsmDone.TryGetValue(tile.Name, out bool bIsCompleted))
             {
                 if (bIsCompleted)
                 {
                     // Las file is already processed, so just update the tile.
-                    tile.TerrainGrid = VoxelGrid.Deserialize(Path.Combine(_sDirectoryIntermediate, tile.FilenameGrid));
+                    tile.TerrainGrid = VoxelGrid.Deserialize(Path.Combine(DirectoryIntermediate, tile.FilenameGrid));
                     Interlocked.Increment(ref tile.CompletedCount);
 
-                    Debug.Log($"DemAndDsmPointCloud {s3km3kmTileName} for {tile.Name} is already completed.");
+                    Debug.Log($"DemAndDsmPointCloud for {tile.Name} is already completed.");
                 }
                 else
                 {
-                    Debug.Log($"DemAndDsmPointCloud {s3km3kmTileName} for {tile.Name} is under work.");
+                    Debug.Log($"DemAndDsmPointCloud for {tile.Name} is under work.");
                 }
 
                 return;
             }
 
-            _3kmDemDsmDone.TryAdd(s3km3kmTileName, false);
+            // Add 1km2 tile names to the dictionary
+            TileNamer.Decode(tile.Name, out Envelope bounds1km);
+            string s3km3kmTileName = TileNamer.Encode((int)bounds1km.MinX, (int)bounds1km.MinY, m_iSupportedInputTileWidth);
+            TileNamer.Decode(s3km3kmTileName, out Envelope bounds3km);
+
+            for (double x = bounds3km.MinX; x < bounds3km.MaxX; x += Tile.EdgeLength)
+            {
+                for (double y = bounds3km.MinY; y < bounds3km.MaxY; y += Tile.EdgeLength)
+                {
+                    string s1km1kmTilename = TileNamer.Encode((int)x, (int)y, Tile.EdgeLength);
+                    _1kmDemDsmDone.TryAdd(s1km1kmTilename, false);
+                }
+            }
 
             ILasFileReader reader = new LasZipFileReader();
 
-            string sFilename = Path.Combine(_sDirectoryOriginal, s3km3kmTileName + ".laz");
+            string sFilename = Path.Combine(DirectoryOriginal, s3km3kmTileName + ".laz");
 
             reader.ReadHeader(sFilename);
 
@@ -137,7 +141,7 @@ namespace Kuoste.LidarWorld.Tile
 
             while ((p = reader.ReadPoint()) != null)
             {
-                p.z /= m_iHeightDivider;
+                p.z /= tile.DemMaxHeight;
 
                 double x = p.x;
                 double y = p.y;
@@ -464,11 +468,13 @@ namespace Kuoste.LidarWorld.Tile
                 Tile t = new() { Name = s1km1kmTilename, Version = tile.Version };
 
                 // Save grid to filesystem for future use
-                grids[i].Serialize(Path.Combine(_sDirectoryIntermediate, t.FilenameGrid));
+                grids[i].Serialize(Path.Combine(DirectoryIntermediate, t.FilenameGrid));
+                
+                _1kmDemDsmDone.TryUpdate(s1km1kmTilename, true, false);
             }
 
-            _3kmDemDsmDone.TryUpdate(s3km3kmTileName, true, false);
-            
+            Interlocked.Increment(ref tile.CompletedCount);
+
             Debug.Log($"Las processing finished! Total time for tile {s3km3kmTileName} was {sw.Elapsed.TotalSeconds} seconds.");
         }
 
@@ -485,7 +491,7 @@ namespace Kuoste.LidarWorld.Tile
                 if (bIsCompleted)
                 {
                     // Shapefile is already processed, so just update the tile.
-                    tile.TerrainType = HeightMap.CreateFromAscii(Path.Combine(_sDirectoryIntermediate, tile.FilenameTerrainType));
+                    tile.TerrainType = HeightMap.CreateFromAscii(Path.Combine(DirectoryIntermediate, tile.FilenameTerrainType));
                     Interlocked.Increment(ref tile.CompletedCount);
 
                     Debug.Log($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
@@ -506,7 +512,7 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterLineClassesToRasterValues);
 
-            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+            string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             rasteriser.AddShapefile(sFullFilename);
 
 
@@ -517,11 +523,12 @@ namespace Kuoste.LidarWorld.Tile
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
                     // Save to filesystem
-                    rasteriser.WriteAsAscii(Path.Combine(_sDirectoryIntermediate, t.FilenameTerrainType), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
+                    rasteriser.WriteAsAscii(Path.Combine(DirectoryIntermediate, t.FilenameTerrainType), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
                 }
             }
 
             _12kmTerrainTypesDone.TryUpdate(s12km12kmMapTileName, true, false);
+            Interlocked.Increment(ref tile.CompletedCount);
         }
 
         public void BuildRoadRaster(Tile tile)
@@ -537,7 +544,7 @@ namespace Kuoste.LidarWorld.Tile
                 if (bIsCompleted)
                 {
                     // Shapefile is already processed, so just update the tile.
-                    tile.Roads = HeightMap.CreateFromAscii(Path.Combine(_sDirectoryIntermediate, tile.FilenameRoads));
+                    tile.Roads = HeightMap.CreateFromAscii(Path.Combine(DirectoryIntermediate, tile.FilenameRoads));
                     Interlocked.Increment(ref tile.CompletedCount);
 
                     Debug.Log($"RoadRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
@@ -557,7 +564,7 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
 
-            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
+            string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
             rasteriser.AddShapefile(sFullFilename);
 
             for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
@@ -567,73 +574,224 @@ namespace Kuoste.LidarWorld.Tile
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
                     // Save to filesystem
-                    rasteriser.WriteAsAscii(Path.Combine(_sDirectoryIntermediate, t.FilenameRoads), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
+                    rasteriser.WriteAsAscii(Path.Combine(DirectoryIntermediate, t.FilenameRoads), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
                 }
             }
 
             _12kmRoadsDone.TryUpdate(s12km12kmMapTileName, true, false);
+            Interlocked.Increment(ref tile.CompletedCount);
         }
 
-        public void BuildBuildingPolygons(Tile tile)
+        public void BuildBuildingVertices(Tile tile)
         {
-            throw new NotImplementedException();
-
-            // Get topographic db tile name
-            TileNamer.Decode(tile.Name, out Envelope bounds);
-            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
-            TileNamer.Decode(s12km12kmMapTileName, out bounds);
-
 
             // Check if the tile is already being processed and add it to the dictionary if not.
-            if (true == _12kmBuildingsDone.TryGetValue(s12km12kmMapTileName, out bool bIsCompleted))
+            if (true == _1kmBuildingsDone.TryGetValue(tile.Name, out bool bIsCompleted))
             {
                 if (bIsCompleted)
-                    Debug.Log($"Tile {s12km12kmMapTileName} for {tile.Name} is already completed.");
+                {
+                    //// Shapefile is already processed, so just update the tile.
+                    //_ = tile.Buildings;
+                    //Interlocked.Increment(ref tile.CompletedCount);
+
+                    Debug.Log($"Buildings for {tile.Name} are already completed.");
+                }
                 else
-                    Debug.Log($"Tile {s12km12kmMapTileName} for {tile.Name} is already under work.");
+                {
+                    Debug.Log($"Buildings for {tile.Name} are already under work.");
+                }
 
                 return;
             }
 
-            _12kmBuildingsDone.TryAdd(s12km12kmMapTileName, false);
+            _1kmBuildingsDone.TryAdd(tile.Name, false);
 
-            string sFullFilename = Path.Combine(_sDirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
 
+            // Get topographic db tile name
+            TileNamer.Decode(tile.Name, out Envelope bounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+
+            string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+
+            //Feature[] features = Shapefile.ReadAllFeatures(sFullFilename, new ShapefileReaderOptions() { MbrFilter = bounds} );
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
-            List<Polygon> polygons = new();
+
+            tile.BuildingTriangles = new();
+            tile.BuildingVertices = new();
 
             foreach (Feature f in features)
             {
+                // Make sure f is inside bounds
+                if (false == bounds.Contains(f.Geometry.EnvelopeInternal))
+                {
+                    continue;
+                }
+
                 int classification = (int)(long)f.Attributes["LUOKKA"];
 
-                if (TopographicDb.BuildingPolygonClassesToRasterValues.ContainsKey(classification))
+                if (false == TopographicDb.BuildingPolygonClassesToRasterValues.ContainsKey(classification))
                 {
-                    polygons.Add((Polygon)f.Geometry);
+                    continue;
+                }
+
+                MultiPolygon mp = (MultiPolygon)f.Geometry;
+
+                List<Vector3> buildingVertices = new();
+                List<int> buildingTriangles = new();
+
+                // Go through polygons in the multipolygon
+                for (int j = 0; j < mp.NumGeometries; j++)
+                {
+                    Polygon polygon = (Polygon)mp.GetGeometryN(j);
+                    LineString exterior = polygon.ExteriorRing;
+
+                    // Try to find the building height from the corners of the polygon
+                    float fBuildingHeights = 0f;
+                    int iBuildingHeightCount = 0;
+                    for (int i = 0; i < exterior.NumPoints; i++)
+                    {
+                        Coordinate c = exterior.GetCoordinateN(i);
+
+                        // Get building height at the coordinate
+                        tile.TerrainGrid.GetGridIndexes(c.X, c.Y, out int iX, out int iY);
+                        BinPoint bp = tile.TerrainGrid.GetHighestPointInClassRange(iX, iY, 0, byte.MaxValue);
+
+                        if (bp != null)
+                        {
+                            fBuildingHeights += bp.Z;
+                            iBuildingHeightCount++;
+                        }
+                    }
+
+                    //if (fBuildingHeight == float.MinValue)
+                    //{
+                    //    // Building height was not found, so use default height
+                    //    fBuildingHeight = (float)tile.TerrainGrid.GetHeight(mp.Centroid.X, mp.Centroid.Y) + 10 / tile.DemMaxHeight;
+                    //}
+
+                    // Create roof triangulation
+
+                    // Move bounding box closer to origo to get triangulation working
+                    Envelope bBox = mp.EnvelopeInternal;
+
+
+                    Envelope bBoxIntegerShifted = new((int)Math.Floor(bBox.MinX) - bBox.MinX,
+                        (int)Math.Ceiling(bBox.MaxX) - bBox.MinX,
+                        (int)Math.Floor(bBox.MinY) - bBox.MinY,
+                        (int)Math.Ceiling(bBox.MaxY) - bBox.MinY);
+
+                    //                Envelope bBoxIntegerShifted = new((int)Math.Floor(bBox.MinX),
+                    //(int)Math.Ceiling(bBox.MaxX),
+                    //(int)Math.Floor(bBox.MinY) ,
+                    //(int)Math.Ceiling(bBox.MaxY));
+
+
+                    SurfaceTriangulation tri = new((int)(bBoxIntegerShifted.MaxX - bBoxIntegerShifted.MinX), 
+                                                   (int)(bBoxIntegerShifted.MaxY - bBoxIntegerShifted.MinY),
+                                                   bBoxIntegerShifted.MinX, bBoxIntegerShifted.MinY, 
+                                                   bBoxIntegerShifted.MaxX, bBoxIntegerShifted.MaxY);
+
+
+                    for (int x = (int)bBoxIntegerShifted.MinX; x < bBoxIntegerShifted.MaxX ; x++)
+                    {
+                        for (int y = (int)bBoxIntegerShifted.MinY; y < bBoxIntegerShifted.MaxY; y++)
+                        {
+                            tile.TerrainGrid.GetGridIndexes(x + bBox.MinX, y + bBox.MinY, out int iRow, out int jCol);
+                            //tile.TerrainGrid.GetGridIndexes(x, y, out int iRow, out int jCol);
+                            BinPoint bp = tile.TerrainGrid.GetHighestPointInClassRange(iRow, jCol, 0, byte.MaxValue);
+
+                            if (bp != null && polygon.Contains(new Point(x, y)))
+                            {
+                                tri.AddPoint(new LasPoint() { x = x, y = y, z = bp.Z  });
+
+                                fBuildingHeights += bp.Z;
+                                iBuildingHeightCount++;
+                            }
+                        }
+                    }
+
+                    float fBuildingHeight = fBuildingHeights / iBuildingHeightCount;
+
+                    for (int i = 0; i < exterior.NumPoints; i++)
+                    {
+                        Coordinate c = exterior.GetCoordinateN(i);
+                        tri.AddPoint(new LasPoint() { x = c.X - bBox.MinX, y = c.Y - bBox.MinY, z = fBuildingHeight });
+                        //tri.AddPoint(new LasPoint() { x = c.X, y = c.Y, z = fBuildingHeight });
+                    }
+
+                    try
+                    { 
+                        tri.Create();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log(e.Message);
+                        continue;
+                    }
+
+                    // Add roof vertices
+                    int iTriangleCount = tri.GetTriangleCount();
+                    for (int i = 0; i < iTriangleCount; i++)
+                    {
+                        tri.GetTriangle(i, out Coordinate c0, out Coordinate c1, out Coordinate c2);
+
+                        int iVertexStart = buildingVertices.Count;
+                        //buildingVertices.Add(new Vector3((float)c0.X, (float)(c0.Z * tile.DemMaxHeight), (float)c0.Y));
+                        //buildingVertices.Add(new Vector3((float)c1.X, (float)(c1.Z * tile.DemMaxHeight), (float)c1.Y));
+                        //buildingVertices.Add(new Vector3((float)c2.X, (float)(c2.Z * tile.DemMaxHeight), (float)c2.Y));
+
+                        Point center = new((c0.X + c1.X + c2.X) / 3 + bBox.MinX, (c0.Y + c1.Y + c2.Y) / 3 + bBox.MinY);
+                        if (false == polygon.Contains(center))
+                        {
+                            continue;
+                        }
+
+                        buildingVertices.Add(new Vector3((float)(c0.X + bBox.MinX - bounds.MinX), 
+                            (float)(c0.Z * tile.DemMaxHeight), (float)(c0.Y + bBox.MinY - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X + bBox.MinX - bounds.MinX), 
+                            (float)(c1.Z * tile.DemMaxHeight), (float)(c1.Y + bBox.MinY - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c2.X + bBox.MinX - bounds.MinX), 
+                            (float)(c2.Z * tile.DemMaxHeight), (float)(c2.Y + bBox.MinY - bounds.MinY)));
+
+                        buildingTriangles.Add(iVertexStart);
+                        buildingTriangles.Add(iVertexStart + 1);
+                        buildingTriangles.Add(iVertexStart + 2);
+                    }
+
+
+                    // Add wall vertices
+                    for (int i = 1; i < exterior.NumPoints; i++)
+                    {
+                        Coordinate c0 = exterior.GetCoordinateN(i - 1);
+                        Coordinate c1 = exterior.GetCoordinateN(i);
+
+                        // Get ground height at the coordinate
+                        float fHeight0 = (float)tile.TerrainGrid.GetHeight(c0.X, c0.Y);
+                        float fHeight1 = (float)tile.TerrainGrid.GetHeight(c1.X, c1.Y);
+
+                        // Create a quad between the two points
+                        int iVertexStart = buildingVertices.Count;
+                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fHeight0 * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fHeight1 * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
+                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
+
+                        buildingTriangles.Add(iVertexStart);
+                        buildingTriangles.Add(iVertexStart + 1);
+                        buildingTriangles.Add(iVertexStart + 2);
+                        buildingTriangles.Add(iVertexStart);
+                        buildingTriangles.Add(iVertexStart + 2);
+                        buildingTriangles.Add(iVertexStart + 3);
+                    }
+
+
+                    tile.BuildingVertices.Add(buildingVertices.ToArray());
+                    tile.BuildingTriangles.Add(buildingTriangles.ToArray());
                 }
             }
 
-            // tallenna polygonit filuun missa muodossa?
-
-
-            // Mark as completed
-            for (int x = (int)bounds.MinX; x < (int)bounds.MaxX; x += Tile.EdgeLength)
-            {
-                for (int y = (int)bounds.MinY; y < (int)bounds.MaxY; y += Tile.EdgeLength)
-                {
-                }
-            }
-
-            _12kmBuildingsDone.TryUpdate(s12km12kmMapTileName, true, false);
-        }
-
-        public void SetOriginalDirectory(string sDirectory)
-        {
-            _sDirectoryOriginal = sDirectory;
-        }
-
-        public void SetIntermediateDirectory(string sDirectory)
-        {
-            _sDirectoryIntermediate = sDirectory;
+            _1kmBuildingsDone.TryUpdate(s12km12kmMapTileName, true, false);
+            Interlocked.Increment(ref tile.CompletedCount);
         }
     }
 }

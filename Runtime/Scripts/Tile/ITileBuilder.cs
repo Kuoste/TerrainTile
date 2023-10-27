@@ -2,14 +2,17 @@ using LasUtility;
 using LasUtility.Common;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Geometries;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
     public interface ITileBuilder
     {
-        void SetOriginalDirectory(string sDirectory);
-        void SetIntermediateDirectory(string sDirectory);
+        string DirectoryIntermediate { get; set; }
+        string DirectoryOriginal { get; set; }
+
+        ConcurrentDictionary<string, bool> DemDsmDone { get; }
 
         void BuildDemAndDsmPointCloud(Tile tile);
 
@@ -17,6 +20,6 @@ namespace Kuoste.LidarWorld.Tile
 
         void BuildTerrainTypeRaster(Tile tile);
 
-        void BuildBuildingPolygons(Tile tile);
+        void BuildBuildingVertices(Tile tile);
     }
 }

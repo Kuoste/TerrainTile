@@ -172,17 +172,36 @@ namespace Kuoste.LidarWorld.Tile
             sw.Stop();
             Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
 
-
             terrainData.SetHeights(0, 0, _tile.TerrainGrid.Dem);
 
             //terrainData.SyncHeightmap();
             //Terrain.activeTerrain.Flush();
             //terrain.GetComponent<Terrain>().Flush();
+
+
+            // Instantiate buildings
+            for (int i = 0; i < _tile.BuildingVertices.Count; i++)
+            {
+                Mesh mesh = new()
+                {
+                    vertices = _tile.BuildingVertices[i],
+                    triangles = _tile.BuildingTriangles[i]
+                };
+
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+
+                GameObject go = new("Building");
+                go.AddComponent<MeshFilter>().mesh = mesh;
+                go.AddComponent<MeshRenderer>();//.material = Resources.Load<Material>("Materials/Building");
+                go.transform.parent = transform;
+            }
         }
 
         // Update is called once per frame
         void Update()
         {
+
         }
     }
 }
