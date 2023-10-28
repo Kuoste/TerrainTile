@@ -1,5 +1,6 @@
 using LasUtility.Nls;
 using LasUtility.VoxelGrid;
+using NetTopologySuite.Geometries;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -193,9 +194,6 @@ namespace Kuoste.LidarWorld.Tile
                 mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
                 mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
 
-                mesh.RecalculateNormals();
-                mesh.RecalculateBounds();
-
                 GameObject go = new("Building");
                 go.AddComponent<MeshFilter>().mesh = mesh;
                 go.AddComponent<MeshRenderer>().materials = new Material[]
@@ -204,7 +202,11 @@ namespace Kuoste.LidarWorld.Tile
                     Resources.Load<Material>("Materials/BuildingRoof_Mat")
                 };
 
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+
                 go.transform.parent = transform;
+                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
             }
         }
 

@@ -681,9 +681,9 @@ namespace Kuoste.LidarWorld.Tile
                         0, 0, buildingBounds.MaxX - buildingBounds.MinX, 
                         buildingBounds.MaxY - buildingBounds.MinY);
 
-                    for (int x = (int)buildingBounds.MinX; x <= buildingBounds.MaxX ; x++)
+                    for (int x = (int)buildingBounds.MinX; x < buildingBounds.MaxX ; x++)
                     {
-                        for (int y = (int)buildingBounds.MinY; y <= buildingBounds.MaxY; y++)
+                        for (int y = (int)buildingBounds.MinY; y < buildingBounds.MaxY; y++)
                         {
                             tile.TerrainGrid.GetGridIndexes(x, y, out int iRow, out int jCol);
                             BinPoint bp = tile.TerrainGrid.GetHighestPointInClassRange(iRow, jCol, 0, byte.MaxValue);
