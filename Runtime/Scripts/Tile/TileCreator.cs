@@ -517,6 +517,21 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.AddShapefile(sFullFilename);
 
 
+
+            // Also collect water areas
+            Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
+            List<Envelope> waterAreas = new();
+
+            foreach (Feature f in features)
+            {
+                int classification = (int)(long)f.Attributes["LUOKKA"];
+
+                if (true == TopographicDb.WaterPolygonClassesToRasterValues.ContainsKey(classification))
+                {
+                    waterAreas.Add(f.Geometry.EnvelopeInternal);
+                }
+            }
+
             for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
@@ -525,6 +540,21 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Save to filesystem
                     rasteriser.WriteAsAscii(Path.Combine(DirectoryIntermediate, t.FilenameTerrainType), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
+
+                    // Save WaterAreas to filesystem
+                    string sWaterAreasFilename = Path.Combine(DirectoryIntermediate, t.FilenameWaterAreas);
+
+                    using StreamWriter sw = new(sWaterAreasFilename);
+
+                    foreach (Envelope area in waterAreas)
+                    {
+                        Envelope inter = area.Intersection(new Envelope(x, x + Tile.EdgeLength, y, y + Tile.EdgeLength));
+
+                        if (false == inter.IsNull)
+                        {
+                            sw.WriteLine($"{Math.Floor(inter.MinX)} {Math.Floor(inter.MinY)} {Math.Ceiling(inter.MaxX)} {Math.Ceiling(inter.MaxY)}");
+                        }
+                    }
                 }
             }
 
@@ -667,7 +697,7 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Create roof triangulation
 
-                    // Move bounds to next integer coordinates
+                    // Extend bounds to next integer coordinates
                     Envelope buildingBounds = new(
                         Math.Floor(buildingPolygon.EnvelopeInternal.MinX),
                         Math.Ceiling(buildingPolygon.EnvelopeInternal.MaxX),

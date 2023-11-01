@@ -23,9 +23,11 @@ namespace Kuoste.LidarWorld.Tile
         // Start is called before the first frame update
         void Start()
         {
-            TerrainData terrainData = GetComponent<Terrain>().terrainData;
-
             Stopwatch sw = Stopwatch.StartNew();
+
+            TileNamer.Decode(_tile.Name, out Envelope bounds);
+
+            TerrainData terrainData = GetComponent<Terrain>().terrainData;
 
             float[,,] alphamaps = terrainData.GetAlphamaps(0, 0, terrainData.alphamapWidth, terrainData.alphamapHeight);
 
@@ -33,9 +35,6 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = 0; y < terrainData.alphamapHeight; y++)
                 {
-                    //float fTotal = 0.0f;
-                    //float fNoiseScale = 8f;
-
                     if (_tile.Roads.Raster[x][y] > 0)
                     {
                         for (int a = 0; a < terrainData.alphamapLayers; a++)
@@ -51,27 +50,45 @@ namespace Kuoste.LidarWorld.Tile
                         {
                             alphamaps[x, y, a] = 0;
                         }
-                        alphamaps[x, y, 1] = 1.0f;
-                    }
-                    //else
-                    //{
-                    //    for (int a = 0; a < terrainData.alphamapLayers; a++)
-                    //    {
-                    //        float v = alphamaps[x, y, a];
-                    //        v += UnityEngine.Random.value * fNoiseScale;
-                    //        fTotal += v;
-                    //        alphamaps[x, y, a] = v;
-                    //    }
+                        alphamaps[x, y, 4] = 1.0f;
 
-                    //    for (int a = 0; a < terrainData.alphamapLayers; a++)
-                    //    {
-                    //        alphamaps[x, y, a] /= fTotal;
-                    //    }
-                    //}
+                        // Reduce terrain height for water areas
+                        _tile.TerrainGrid.Dem[x, y] -= 1.5f / _tile.DemMaxHeight;
+                    }
                 }
             }
 
             terrainData.SetAlphamaps(0, 0, alphamaps);
+
+            // Add water planes
+
+            GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
+
+            // Find size of the goPlane
+            Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
+            float fGoPlaneMeshWidth = goPlaneBounds.size.x;
+            float fGoPlaneMeshHeight = goPlaneBounds.size.z;
+
+            foreach (Envelope area in _tile.WaterAreas)
+            {
+                // Read water surface height
+                // todo wont work when centre is outside the lake
+                float fWaterHeight = (float)_tile.TerrainGrid.GetHeight(area.Centre.X, area.Centre.Y) * _tile.DemMaxHeight + 1;
+
+                GameObject go = Instantiate(goPlane);
+                go.transform.parent = transform;
+                go.transform.localScale = new(
+                    (float)area.Width / fGoPlaneMeshWidth, 
+                    1, 
+                    (float)area.Height / fGoPlaneMeshHeight);
+                
+                Vector3 position = new(
+                    (float)(area.Centre.X - bounds.MinX), 
+                    fWaterHeight, 
+                    (float)(area.Centre.Y - bounds.MinY));
+
+                go.transform.SetLocalPositionAndRotation(position, Quaternion.identity);
+            }
 
             sw.Stop();
             Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
