@@ -35,20 +35,22 @@ namespace Kuoste.LidarWorld.Tile
             {
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
-                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
+                    // Currently buildings are not saved
 
-                    if (File.Exists(sFullFilename))
-                    {
-                        Stopwatch sw = Stopwatch.StartNew();
+                    //string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
 
-                        // Load from filesystem
-                        _reader.BuildBuildingVertices(tile);
+                    //if (File.Exists(sFullFilename))
+                    //{
+                    //    Stopwatch sw = Stopwatch.StartNew();
 
-                        sw.Stop();
-                        Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
-                    }
-                    else
-                    {
+                    //    // Load from filesystem
+                    //    _reader.BuildBuildingVertices(tile);
+
+                    //    sw.Stop();
+                    //    Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
+                    //}
+                    //else
+                    //{
                         // Buildings require surface heights to be available first
                         _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
 
@@ -73,8 +75,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             iSleepMs = 10000;
                         }
-                    }
-
+                    //}
                 }
 
                 Thread.Sleep(iSleepMs);

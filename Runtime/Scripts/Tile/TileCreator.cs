@@ -512,11 +512,14 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterLineClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.SwampPolygonClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RockPolygonClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.SandPolygonClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.FieldPolygonClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RockLineClassesToRasterValues);
 
             string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             rasteriser.AddShapefile(sFullFilename);
-
-
 
             // Also collect water areas
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);

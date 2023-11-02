@@ -1,10 +1,12 @@
 using LasUtility.Nls;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Noding;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
@@ -35,25 +37,74 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = 0; y < terrainData.alphamapHeight; y++)
                 {
+                    int iLayerToAlter = -1;
+                    bool bExpand = false;
+
                     if (_tile.Roads.Raster[x][y] > 0)
                     {
-                        for (int a = 0; a < terrainData.alphamapLayers; a++)
-                        {
-                            alphamaps[x, y, a] = 0;
-                        }
-                        alphamaps[x, y, 6] = 1.0f;
-
+                        iLayerToAlter = 6;
+                        bExpand = true;
                     }
                     else if (_tile.TerrainType.Raster[x][y] > 0)
                     {
-                        for (int a = 0; a < terrainData.alphamapLayers; a++)
-                        {
-                            alphamaps[x, y, a] = 0;
-                        }
-                        alphamaps[x, y, 4] = 1.0f;
+                        byte bTerrainType = _tile.TerrainType.Raster[x][y];
 
-                        // Reduce terrain height for water areas
-                        _tile.TerrainGrid.Dem[x, y] -= 1.5f / _tile.DemMaxHeight;
+                        if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            // Reduce terrain height for water areas
+                            _tile.TerrainGrid.Dem[x, y] -= 1.5f / _tile.DemMaxHeight;
+
+                            iLayerToAlter = 4;
+                        }
+                        else if (TopographicDb.FieldPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            //terrainData.GetDetailLayer(0, 0, terrainData.detailWidth, terrainData.detailHeight, 0)[x, y] = 1;
+                            iLayerToAlter = 2;
+                        }
+                        else if (TopographicDb.SwampPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            iLayerToAlter = 0;
+                        }
+                        else if (TopographicDb.RockPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            iLayerToAlter = 5;
+                        }
+                        else if (TopographicDb.SandPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            iLayerToAlter = 4;
+                        }
+                        else if (TopographicDb.RockLineClassesToRasterValues.ContainsValue(bTerrainType))
+                        {
+                            iLayerToAlter = 4;
+                            bExpand = true;
+                        }
+
+                    }
+
+                    if (iLayerToAlter >= 0)
+                    {
+                        int iLayerCnt = terrainData.alphamapLayers;
+                        SetAlphamapLayerToMax(iLayerCnt, alphamaps, x, y, iLayerToAlter);
+
+                        if (true == bExpand)
+                        {
+                            if (x > 0)
+                            {
+                                SetAlphamapLayerToMax(iLayerCnt, alphamaps, x - 1, y, iLayerToAlter);
+                            }
+                            if (x < terrainData.alphamapWidth - 1)
+                            {
+                                SetAlphamapLayerToMax(iLayerCnt, alphamaps, x + 1, y, iLayerToAlter);
+                            }
+                            if (y > 0)
+                            {
+                                SetAlphamapLayerToMax(iLayerCnt, alphamaps, x, y - 1, iLayerToAlter);
+                            }
+                            if (y < terrainData.alphamapHeight - 1)
+                            {
+                                SetAlphamapLayerToMax(iLayerCnt, alphamaps, x, y + 1, iLayerToAlter);
+                            }
+                        }
                     }
                 }
             }
@@ -204,10 +255,10 @@ namespace Kuoste.LidarWorld.Tile
                 Mesh mesh = new()
                 {
                     vertices = _tile.BuildingVertices[i],
-                    triangles = _tile.BuildingTriangles[i]
+                    triangles = _tile.BuildingTriangles[i],
+                    subMeshCount = 2
                 };
 
-                mesh.subMeshCount = 2;
                 mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
                 mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
 
@@ -225,6 +276,16 @@ namespace Kuoste.LidarWorld.Tile
                 go.transform.parent = transform;
                 go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
             }
+        }
+
+        private static void SetAlphamapLayerToMax(int iLayerCount, float[,,] alphamaps, int x, int y, int iLayer)
+        {
+            for (int a = 0; a < iLayerCount; a++)
+            {
+                alphamaps[x, y, a] = 0;
+            }
+
+            alphamaps[x, y, iLayer] = 1.0f;
         }
 
         // Update is called once per frame
