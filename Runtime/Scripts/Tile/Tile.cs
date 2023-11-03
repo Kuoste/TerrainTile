@@ -43,8 +43,8 @@ namespace Kuoste.LidarWorld.Tile
         public bool IsCompleted => Interlocked.Add(ref CompletedCount, 0) >= 4;
 
         public string FilenameGrid => Name + "_v" + Version + ".grid";
-        public string FilenameRoads => Name + "_roads_v" + Version + ".asc";
-        public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asc";
+        public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
+        public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
         public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".txt";
         public string FilenameBuildings => Name + "_buildings_v" + Version + ".obj";
 
