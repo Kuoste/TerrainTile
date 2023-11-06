@@ -39,8 +39,8 @@ namespace Kuoste.LidarWorld.Tile
 
         public int CompletedCount;
 
-        // Everything is done when all four content types i.e. terraingrid, roads, terrainfeatures, buildings, trees are built
-        public bool IsCompleted => Interlocked.Add(ref CompletedCount, 0) >= 5;
+        // Everything is done when all 6 content types i.e. terraingrid, roads, terrainfeatures, buildings, trees, water areas are built
+        public bool IsCompleted => Interlocked.Add(ref CompletedCount, 0) >= 6;
 
         public string FilenameGrid => Name + "_v" + Version + ".grid";
         public string FilenameRoads => Name + "_roads_v" + Version + ".asp";

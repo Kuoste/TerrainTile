@@ -79,10 +79,10 @@ namespace Kuoste.LidarWorld.Tile
 
                             // Create a quad between the two points
                             int iVertexStart = buildingVertices.Count;
-                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)c0.Z * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)c1.Z * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
+                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)c0.Z, (float)(c0.Y - bounds.MinY)));
+                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)c1.Z, (float)(c1.Y - bounds.MinY)));
+                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight, (float)(c1.Y - bounds.MinY)));
+                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight, (float)(c0.Y - bounds.MinY)));
 
                             buildingTriangles.Add(iVertexStart);
                             buildingTriangles.Add(iVertexStart + 1);
@@ -109,11 +109,11 @@ namespace Kuoste.LidarWorld.Tile
 
                         int iVertexStart = buildingVertices.Count;
                         buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX),
-                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c0.Y - bounds.MinY)));
+                            fBuildingHeight, (float)(c0.Y - bounds.MinY)));
                         buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX),
-                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c1.Y - bounds.MinY)));
+                            fBuildingHeight, (float)(c1.Y - bounds.MinY)));
                         buildingVertices.Add(new Vector3((float)(c2.X - bounds.MinX),
-                            (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c2.Y - bounds.MinY)));
+                            fBuildingHeight, (float)(c2.Y - bounds.MinY)));
 
                         buildingTriangles.Add(iVertexStart);
                         buildingTriangles.Add(iVertexStart + 1);

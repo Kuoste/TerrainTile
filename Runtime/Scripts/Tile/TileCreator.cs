@@ -6,19 +6,13 @@ using LasUtility.ShapefileRasteriser;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.IO;
 using NetTopologySuite.IO.Esri;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using System.Xml;
-using Unity.VisualScripting;
-using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
@@ -141,8 +135,6 @@ namespace Kuoste.LidarWorld.Tile
 
             while ((p = reader.ReadPoint()) != null)
             {
-                p.z /= tile.DemMaxHeight;
-
                 double x = p.x;
                 double y = p.y;
                 double z = p.z;
@@ -469,6 +461,12 @@ namespace Kuoste.LidarWorld.Tile
 
                 // Save grid to filesystem for future use
                 grids[i].Serialize(Path.Combine(DirectoryIntermediate, t.FilenameGrid));
+
+                if (tile.Name == s1km1kmTilename)
+                {
+                    // Save the grid to the tile
+                    tile.TerrainGrid = grids[i];
+                }
                 
                 _1kmDemDsmDone.TryUpdate(s1km1kmTilename, true, false);
             }
@@ -815,6 +813,8 @@ namespace Kuoste.LidarWorld.Tile
                         }
                     }
 
+                    // There has to be at least 15 high vegetation points in the neighborhood
+                    // and the tree has to be the highest point.
                     if (iHighVegetationCount < 15 || fTreeHeight > centerPoints[0].Z)
                     {
                         continue;

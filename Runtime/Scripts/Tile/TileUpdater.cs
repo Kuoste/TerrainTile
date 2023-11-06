@@ -1,12 +1,6 @@
 using LasUtility.Nls;
-using LasUtility.VoxelGrid;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Noding;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
@@ -27,10 +21,84 @@ namespace Kuoste.LidarWorld.Tile
         {
             Stopwatch sw = Stopwatch.StartNew();
 
-            TileNamer.Decode(_tile.Name, out Envelope bounds);
-
             TerrainData terrainData = GetComponent<Terrain>().terrainData;
 
+            SetAlphaMaps(terrainData);
+
+            sw.Stop();
+            Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            sw.Restart();
+
+            AddWaterPlanes();
+
+            sw.Stop();
+            Debug.Log($"Setting water planes for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            sw.Restart();
+
+            AddTrees(terrainData);
+
+            sw.Stop();
+            Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            sw.Restart();
+
+            // Scale terrain height
+            for (int x = 0; x < terrainData.heightmapResolution; x++)
+            {
+                for (int y = 0; y < terrainData.heightmapResolution; y++)
+                {
+                    _tile.TerrainGrid.Dem[x, y] /= _tile.DemMaxHeight;
+                }
+            }
+
+            terrainData.SetHeights(0, 0, _tile.TerrainGrid.Dem);
+
+            //terrainData.SyncHeightmap();
+            //Terrain.activeTerrain.Flush();
+            //terrain.GetComponent<Terrain>().Flush();
+
+            sw.Stop();
+            Debug.Log($"Setting DEM for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            sw.Restart();
+
+            AddBuildings();
+
+            sw.Stop();
+            Debug.Log($"Setting buildings for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            sw.Restart();
+        }
+
+        private void AddBuildings()
+        {
+            for (int i = 0; i < _tile.BuildingVertices.Count; i++)
+            {
+                Mesh mesh = new()
+                {
+                    vertices = _tile.BuildingVertices[i],
+                    triangles = _tile.BuildingTriangles[i],
+                    subMeshCount = 2
+                };
+
+                mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
+                mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
+
+                GameObject go = new("Building");
+                go.AddComponent<MeshFilter>().mesh = mesh;
+                go.AddComponent<MeshRenderer>().materials = new Material[]
+                {
+                    Resources.Load<Material>("Materials/BuildingWall_Mat"),
+                    Resources.Load<Material>("Materials/BuildingRoof_Mat")
+                };
+
+                mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
+
+                go.transform.parent = transform;
+                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+            }
+        }
+
+        private void SetAlphaMaps(TerrainData terrainData)
+        {
             float[,,] alphamaps = terrainData.GetAlphamaps(0, 0, terrainData.alphamapWidth, terrainData.alphamapHeight);
 
             for (int x = 0; x < terrainData.alphamapWidth; x++)
@@ -52,7 +120,7 @@ namespace Kuoste.LidarWorld.Tile
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
                             // Reduce terrain height inside water areas
-                            _tile.TerrainGrid.Dem[x, y] -= 4f / _tile.DemMaxHeight;
+                            _tile.TerrainGrid.Dem[x, y] -= 1.5f;
 
                             iLayerToAlter = 4;
                         }
@@ -110,46 +178,15 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             terrainData.SetAlphamaps(0, 0, alphamaps);
+        }
 
-            // Add water planes
-
-            GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
-
-            Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
-            float fGoPlaneMeshWidth = goPlaneBounds.size.x;
-            float fGoPlaneMeshHeight = goPlaneBounds.size.z;
-
-            foreach (Polygon p in _tile.WaterAreas)
-            {
-                // Read water surface height. All points have the same height
-                float fWaterHeight = (float)p.Coordinates[0].Z * _tile.DemMaxHeight - 2;
-
-                Envelope area = p.EnvelopeInternal;
-
-                GameObject go = Instantiate(goPlane);
-                go.transform.parent = transform;
-                go.transform.localScale = new(
-                    (float)area.Width / fGoPlaneMeshWidth, 
-                    1, 
-                    (float)area.Height / fGoPlaneMeshHeight);
-                
-                Vector3 position = new(
-                    (float)(area.Centre.X - bounds.MinX), 
-                    fWaterHeight, 
-                    (float)(area.Centre.Y - bounds.MinY));
-
-                go.transform.SetLocalPositionAndRotation(position, Quaternion.identity);
-            }
-
-            sw.Stop();
-            Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
-
+        private void AddTrees(TerrainData terrainData)
+        {
             TreeInstance[] trees = new TreeInstance[_tile.Trees.Count];
 
             for (int t = 0; t < _tile.Trees.Count; t++)
             {
-                float fScale = 1f;//  (float)_tile.Trees[t].Z / fMaxHeightForTile;
+                float fScale = (float)_tile.Trees[t].Z / 40;
 
                 trees[t] = new()
                 {
@@ -164,43 +201,41 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             terrainData.SetTreeInstances(trees, true);
+        }
 
-            sw.Stop();
-            Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+        private void AddWaterPlanes()
+        {
+            TileNamer.Decode(_tile.Name, out Envelope bounds);
 
-            terrainData.SetHeights(0, 0, _tile.TerrainGrid.Dem);
+            GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
 
-            //terrainData.SyncHeightmap();
-            //Terrain.activeTerrain.Flush();
-            //terrain.GetComponent<Terrain>().Flush();
+            Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
+            float fGoPlaneMeshWidth = goPlaneBounds.size.x;
+            float fGoPlaneMeshHeight = goPlaneBounds.size.z;
 
-
-            // Instantiate buildings
-            for (int i = 0; i < _tile.BuildingVertices.Count; i++)
+            foreach (Polygon p in _tile.WaterAreas)
             {
-                Mesh mesh = new()
-                {
-                    vertices = _tile.BuildingVertices[i],
-                    triangles = _tile.BuildingTriangles[i],
-                    subMeshCount = 2
-                };
+                // Read water surface height. All points have the same height
+                float fWaterHeight = (float)p.Coordinates[0].Z;
 
-                mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
-                mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
+                Envelope area = p.EnvelopeInternal;
 
-                GameObject go = new("Building");
-                go.AddComponent<MeshFilter>().mesh = mesh;
-                go.AddComponent<MeshRenderer>().materials = new Material[]
-                {
-                    Resources.Load<Material>("Materials/BuildingWall_Mat"),
-                    Resources.Load<Material>("Materials/BuildingRoof_Mat")
-                };
+                // Expand area for better coverage
+                area.ExpandBy(5);
 
-                mesh.RecalculateNormals();
-                mesh.RecalculateBounds();
-
+                GameObject go = Instantiate(goPlane);
                 go.transform.parent = transform;
-                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                go.transform.localScale = new(
+                    (float)area.Width / fGoPlaneMeshWidth,
+                    1,
+                    (float)area.Height / fGoPlaneMeshHeight);
+
+                Vector3 position = new(
+                    (float)(area.Centre.X - bounds.MinX),
+                    fWaterHeight,
+                    (float)(area.Centre.Y - bounds.MinY));
+
+                go.transform.SetLocalPositionAndRotation(position, Quaternion.identity);
             }
         }
 
@@ -212,12 +247,6 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             alphamaps[x, y, iLayer] = 1.0f;
-        }
-
-        // Update is called once per frame
-        void Update()
-        {
-
         }
     }
 }
