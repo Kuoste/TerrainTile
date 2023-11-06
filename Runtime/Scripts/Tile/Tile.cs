@@ -46,6 +46,7 @@ namespace Kuoste.LidarWorld.Tile
         public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
         public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
         public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".txt";
-        public string FilenameGeometries => Name + "_geometries_v" + Version + ".geojson";
+        public string FilenameBuildings => Name + "_buildings_v" + Version + ".geojson";
+        public string FilenameTrees => Name + "_trees_v" + Version + ".geojson";
     }
 }

@@ -37,22 +37,23 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     // Currently buildings are not saved
 
-                    //string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
+                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
 
-                    //if (File.Exists(sFullFilename))
-                    //{
-                    //    Stopwatch sw = Stopwatch.StartNew();
+                    if (File.Exists(sFullFilename))
+                    {
+                        Stopwatch sw = Stopwatch.StartNew();
 
-                    //    // Load from filesystem
-                    //    _reader.BuildGeometries(tile);
+                        // Load from filesystem
+                        _reader.BuildGeometries(tile);
 
-                    //    sw.Stop();
-                    //    Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
-                    //}
-                    //else
-                    //{
-                    // Buildings require surface heights to be available first
-                    _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
+                        sw.Stop();
+                        Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
+
+                    }
+                    else
+                    { 
+                        // Buildings require surface heights to be available first
+                        _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
 
                         if (false == isDemDsmBuilt)
                             _reader.DemDsmDone.TryGetValue(tile.Name, out isDemDsmBuilt);
@@ -63,6 +64,9 @@ namespace Kuoste.LidarWorld.Tile
 
                             // Create from shapefiles and DSM
                             _creator.BuildGeometries(tile);
+
+                            // Load from filesystem
+                            _reader.BuildGeometries(tile);
 
                             sw.Stop();
                             Debug.Log($"Tile {tile.Name} building vertices created in {sw.ElapsedMilliseconds} ms.");
@@ -75,7 +79,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             iSleepMs = 10000;
                         }
-                    //}
+                    }
                 }
 
                 Thread.Sleep(iSleepMs);

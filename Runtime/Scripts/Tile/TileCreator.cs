@@ -17,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Xml;
+using Unity.VisualScripting;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -639,18 +640,21 @@ namespace Kuoste.LidarWorld.Tile
 
             _1kmGeometriesDone.TryAdd(tile.Name, false);
 
+            BuildBuildings(tile);
+
+
+            _1kmGeometriesDone.TryUpdate(tile.Name, true, false);
+            //Interlocked.Increment(ref tile.CompletedCount);
+        }
+
+        private void BuildBuildings(Tile tile)
+        {
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
 
-            JsonSerializer serializer = GeoJsonSerializer.Create();
-            using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameGeometries));
-            using JsonWriter jsonWriter = new JsonTextWriter(streamWriter);
-            //streamWriter.Write("{\"layers\":");
-            
-               
-
             // Load buildings
+            using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameBuildings));
 
             string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
@@ -675,9 +679,6 @@ namespace Kuoste.LidarWorld.Tile
                 }
 
                 MultiPolygon mp = (MultiPolygon)f.Geometry;
-
-                //List<Vector3> buildingVertices = new();
-                //List<int> buildingTriangles = new();
 
                 // Go through polygons in the multipolygon
                 for (int j = 0; j < mp.NumGeometries; j++)
@@ -715,12 +716,12 @@ namespace Kuoste.LidarWorld.Tile
                     SurfaceTriangulation tri = new(
                         (int)(buildingBounds.MaxX - buildingBounds.MinX),
                         (int)(buildingBounds.MaxY - buildingBounds.MinY),
-                        0, 0, buildingBounds.MaxX - buildingBounds.MinX, 
+                        0, 0, buildingBounds.MaxX - buildingBounds.MinX,
                         buildingBounds.MaxY - buildingBounds.MinY);
 
                     // Make faster by skipping some coordinates
                     int iSkip = 3;
-                    for (int x = (int)buildingBounds.MinX; x < buildingBounds.MaxX ; x += iSkip)
+                    for (int x = (int)buildingBounds.MinX; x < buildingBounds.MaxX; x += iSkip)
                     {
                         for (int y = (int)buildingBounds.MinY; y < buildingBounds.MaxY; y += iSkip)
                         {
@@ -729,7 +730,7 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (bp != null && buildingPolygon.Contains(new Point(x, y)))
                             {
-                                tri.AddPoint(new LasPoint() { x = x - buildingBounds.MinX, y = y - buildingBounds.MinY, z = bp.Z  });
+                                tri.AddPoint(new LasPoint() { x = x - buildingBounds.MinX, y = y - buildingBounds.MinY, z = bp.Z });
 
                                 buildingHeights.Add(bp.Z);
                             }
@@ -739,7 +740,7 @@ namespace Kuoste.LidarWorld.Tile
                     if (buildingHeights.Count == 0)
                     {
                         continue;
-                    }   
+                    }
 
                     // 10th percentile of building heights. Aiming for the actual roof height, not the walls or overhanging trees.
                     buildingHeights.Sort();
@@ -753,7 +754,7 @@ namespace Kuoste.LidarWorld.Tile
                     }
 
                     try
-                    { 
+                    {
                         tri.Create();
                     }
                     catch (Exception e)
@@ -762,90 +763,14 @@ namespace Kuoste.LidarWorld.Tile
                         continue;
                     }
 
-                    //// Add wall vertices
-                    //for (int i = 1; i < buildingExterior.NumPoints; i++)
-                    //{
-                    //    Coordinate c0 = buildingExterior.GetCoordinateN(i - 1);
-                    //    Coordinate c1 = buildingExterior.GetCoordinateN(i);
-
-                    //    // Create a quad between the two points
-                    //    int iVertexStart = buildingVertices.Count;
-                    //    buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), c0.Z * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
-                    //    buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), c1.Z * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                    //    buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c1.Y - bounds.MinY)));
-                    //    buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight * tile.DemMaxHeight, (float)(c0.Y - bounds.MinY)));
-
-                    //    buildingTriangles.Add(iVertexStart);
-                    //    buildingTriangles.Add(iVertexStart + 1);
-                    //    buildingTriangles.Add(iVertexStart + 2);
-                    //    buildingTriangles.Add(iVertexStart);
-                    //    buildingTriangles.Add(iVertexStart + 2);
-                    //    buildingTriangles.Add(iVertexStart + 3);
-                    //}
-
-                    //tile.BuildingSubmeshSeparator.Add(buildingTriangles.Count);
-
-                    //// Add roof vertices
-                    //int iTriangleCount = tri.GetTriangleCount();
-                    //for (int i = 0; i < iTriangleCount; i++)
-                    //{
-                    //    tri.GetTriangle(i, out Coordinate c0, out Coordinate c1, out Coordinate c2);
-
-                    //    // Skip extra segments on concave corners
-                    //    Point center = new((c0.X + c1.X + c2.X) / 3 + buildingBounds.MinX, (c0.Y + c1.Y + c2.Y) / 3 + buildingBounds.MinY);
-                    //    if (false == buildingPolygon.Contains(center))
-                    //    {
-                    //        continue;
-                    //    }
-
-                    //    int iVertexStart = buildingVertices.Count;
-                    //    buildingVertices.Add(new Vector3((float)(c0.X + buildingBounds.MinX - bounds.MinX),
-                    //        (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c0.Y + buildingBounds.MinY - bounds.MinY)));
-                    //    buildingVertices.Add(new Vector3((float)(c1.X + buildingBounds.MinX - bounds.MinX),
-                    //        (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c1.Y + buildingBounds.MinY - bounds.MinY)));
-                    //    buildingVertices.Add(new Vector3((float)(c2.X + buildingBounds.MinX - bounds.MinX),
-                    //        (float)(fBuildingHeight * tile.DemMaxHeight), (float)(c2.Y + buildingBounds.MinY - bounds.MinY)));
-                    //    //buildingVertices.Add(new Vector3((float)(c0.X + buildingBounds.MinX - bounds.MinX), 
-                    //    //    (float)(c0.Z * tile.DemMaxHeight), (float)(c0.Y + buildingBounds.MinY - bounds.MinY)));
-                    //    //buildingVertices.Add(new Vector3((float)(c1.X + buildingBounds.MinX - bounds.MinX), 
-                    //    //    (float)(c1.Z * tile.DemMaxHeight), (float)(c1.Y + buildingBounds.MinY - bounds.MinY)));
-                    //    //buildingVertices.Add(new Vector3((float)(c2.X + buildingBounds.MinX - bounds.MinX), 
-                    //    //    (float)(c2.Z * tile.DemMaxHeight), (float)(c2.Y + buildingBounds.MinY - bounds.MinY)));
-
-                    //    buildingTriangles.Add(iVertexStart);
-                    //    buildingTriangles.Add(iVertexStart + 1);
-                    //    buildingTriangles.Add(iVertexStart + 2);
-                    //}
-
-                    //streamWriter.Write("[");
-                    //serializer.Serialize(jsonWriter, buildingPolygon);
-                    //streamWriter.Write(Environment.NewLine);
-                    //streamWriter.Write("],");
-
-                    // Start polygon
-                    streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
-                    streamWriter.Write("[[");
-
-                    for (int i = 0; i < buildingExterior.Coordinates.Length; i++)
-                    {
-                        Coordinate c = buildingExterior.Coordinates[i];
-                        streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{tile.TerrainGrid.GetHeight(c.X, c.Y)}]");
-
-                        if (i < buildingExterior.Coordinates.Length - 1)
-                        {
-                            streamWriter.Write(",");
-                        }
-                    }
-
-                    // End polygon
-                    streamWriter.Write("]]");
-                    streamWriter.WriteLine("}");
+                    // Start geometrycollection
+                    streamWriter.WriteLine("{ \"type\":\"GeometryCollection\", \"geometries\": [");
 
                     // Add roof vertices
                     int iTriangleCount = tri.GetTriangleCount();
                     for (int i = 0; i < iTriangleCount; i++)
                     {
-                        tri.GetTriangle(i, out Coordinate c0 , out Coordinate c1, out Coordinate c2);
+                        tri.GetTriangle(i, out Coordinate c0, out Coordinate c1, out Coordinate c2);
 
                         c0.X = Math.Round(c0.X + buildingBounds.MinX, 2);
                         c0.Y = Math.Round(c0.Y + buildingBounds.MinY, 2);
@@ -872,50 +797,32 @@ namespace Kuoste.LidarWorld.Tile
 
                         // End polygon
                         streamWriter.Write("]]");
-                        streamWriter.WriteLine("}");
-
-                        ////streamWriter.Write($"[{Math.Round(c0.X, 2)},{Math.Round(c0.Y, 2)},{fBuildingHeight}],");
-                        ////streamWriter.Write($"[{Math.Round(c1.X, 2)},{Math.Round(c1.Y, 2)},{fBuildingHeight}],");
-                        ////streamWriter.Write($"[{Math.Round(c2.X, 2)},{Math.Round(c2.Y, 2)},{fBuildingHeight}]");
-                        //streamWriter.Write($"[{Math.Round(c0.X, 2)},{Math.Round(c0.Y, 2)}],");
-                        //streamWriter.Write($"[{Math.Round(c1.X, 2)},{Math.Round(c1.Y, 2)}],");
-                        //streamWriter.Write($"[{Math.Round(c2.X, 2)},{Math.Round(c2.Y, 2)}],");
-                        //streamWriter.Write($"[{Math.Round(c0.X, 2)},{Math.Round(c0.Y, 2)}]");
-                        //streamWriter.Write("]]");
-
-
-
-
-                        //writer.WriteStartElement("RoofTriangle");
-                        //CoordinateZ cz = c0 as CoordinateZ;
-                        //cz.Z = fBuildingHeight;
-                        //writer.WriteAttributeString("V0", JsonUtility.ToJson(cz, false));
-                        //cz = c1 as CoordinateZ;
-                        //cz.Z = fBuildingHeight;
-                        //writer.WriteAttributeString("V1", JsonUtility.ToJson(cz, false));
-                        //cz = c2 as CoordinateZ;
-                        //cz.Z = fBuildingHeight;
-                        //writer.WriteAttributeString("V2", JsonUtility.ToJson(cz, false));
-                        //writer.WriteEndElement();
+                        streamWriter.WriteLine("},");
                     }
 
+                    // Add building boundaries
+                    streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
+                    streamWriter.Write("[[");
 
+                    for (int i = 0; i < buildingExterior.Coordinates.Length; i++)
+                    {
+                        Coordinate c = buildingExterior.Coordinates[i];
+                        streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{tile.TerrainGrid.GetHeight(c.X, c.Y)}]");
 
-                    //tile.BuildingVertices.Add(buildingVertices.ToArray());
-                    //tile.BuildingTriangles.Add(buildingTriangles.ToArray());
+                        if (i < buildingExterior.Coordinates.Length - 1)
+                        {
+                            streamWriter.Write(",");
+                        }
+                    }
+
+                    // End polygon
+                    streamWriter.Write("]]");
+                    streamWriter.WriteLine("},");
+
+                    // End geometry collection
+                    streamWriter.WriteLine("]}");
                 }
-
-
-
             }
-
-            // Close layers
-            //streamWriter.WriteLine("}");
-
-
-
-            _1kmGeometriesDone.TryUpdate(s12km12kmMapTileName, true, false);
-            Interlocked.Increment(ref tile.CompletedCount);
         }
     }
 }
