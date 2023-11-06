@@ -159,30 +159,6 @@ namespace Kuoste.LidarWorld.Tile
 
             tile.TerrainType = HeightMap.CreateFromAscii(sFullFilename);
 
-
-            // Load water areas
-
-            sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameWaterAreas);
-            tile.WaterAreas = new();
-
-            using StreamReader sr = new(sFullFilename);
-
-            while (sr.Peek() >= 0)
-            {
-                string[] sValues = sr.ReadLine().Split(' ');
-
-                if (sValues.Length != 4)
-                    throw new System.Exception("Invalid water area file format");
-
-                Envelope e = new(
-                    int.Parse(sValues[0]),
-                    int.Parse(sValues[2]),
-                    int.Parse(sValues[1]),
-                    int.Parse(sValues[3]));
-
-                tile.WaterAreas.Add(e);
-            }
-
             Interlocked.Increment(ref tile.CompletedCount);
         }
 
@@ -231,7 +207,42 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildWaterAreas(Tile tile)
         {
-            throw new NotImplementedException();
+            TileNamer.Decode(tile.Name, out Envelope bounds);
+            string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameWaterAreas);
+
+            tile.WaterAreas = new();
+
+            string[] sAreas = File.ReadAllText(sFullFilename).Split("Polygon");
+
+            foreach (string sArea in sAreas)
+            {
+                string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);
+
+                List<CoordinateZ> coordinates = new();
+
+                foreach (string sCoordinate in sCordinates)
+                {
+                    if (!char.IsDigit(sCoordinate[0]))
+                        continue;
+
+                    var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
+
+                    // Delete the last character which is a closing bracket and everyting after it
+                    coords[2] = coords[2].Substring(0, coords[2].IndexOf(']'));
+
+                    coordinates.Add(new(
+                        double.Parse(coords[0]),
+                        double.Parse(coords[1]),
+                        double.Parse(coords[2])));
+                }
+
+                if (coordinates.Count > 0)
+                {
+                    tile.WaterAreas.Add(new Polygon(new LinearRing(coordinates.ToArray())));
+                }
+            }
+
+            Interlocked.Increment(ref tile.CompletedCount);
         }
     }
 }

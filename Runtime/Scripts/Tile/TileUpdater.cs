@@ -51,8 +51,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
-                            // Reduce terrain height for water areas
-                            _tile.TerrainGrid.Dem[x, y] -= 1.5f / _tile.DemMaxHeight;
+                            // Reduce terrain height inside water areas
+                            _tile.TerrainGrid.Dem[x, y] -= 4f / _tile.DemMaxHeight;
 
                             iLayerToAlter = 4;
                         }
@@ -115,16 +115,16 @@ namespace Kuoste.LidarWorld.Tile
 
             GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
 
-            // Find size of the goPlane
             Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
             float fGoPlaneMeshWidth = goPlaneBounds.size.x;
             float fGoPlaneMeshHeight = goPlaneBounds.size.z;
 
-            foreach (Envelope area in _tile.WaterAreas)
+            foreach (Polygon p in _tile.WaterAreas)
             {
-                // Read water surface height
-                // todo wont work when centre is outside the lake
-                float fWaterHeight = (float)_tile.TerrainGrid.GetHeight(area.Centre.X, area.Centre.Y) * _tile.DemMaxHeight + 1;
+                // Read water surface height. All points have the same height
+                float fWaterHeight = (float)p.Coordinates[0].Z * _tile.DemMaxHeight - 2;
+
+                Envelope area = p.EnvelopeInternal;
 
                 GameObject go = Instantiate(goPlane);
                 go.transform.parent = transform;

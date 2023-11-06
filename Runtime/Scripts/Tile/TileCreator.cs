@@ -520,20 +520,6 @@ namespace Kuoste.LidarWorld.Tile
             string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             rasteriser.AddShapefile(sFullFilename);
 
-            // Also collect water areas
-            Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
-            List<Envelope> waterAreas = new();
-
-            foreach (Feature f in features)
-            {
-                int classification = (int)(long)f.Attributes["LUOKKA"];
-
-                if (true == TopographicDb.WaterPolygonClassesToRasterValues.ContainsKey(classification))
-                {
-                    waterAreas.Add(f.Geometry.EnvelopeInternal);
-                }
-            }
-
             for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
@@ -542,21 +528,6 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Save to filesystem
                     rasteriser.WriteAsAscii(Path.Combine(DirectoryIntermediate, t.FilenameTerrainType), x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
-
-                    // Save WaterAreas to filesystem
-                    string sWaterAreasFilename = Path.Combine(DirectoryIntermediate, t.FilenameWaterAreas);
-
-                    using StreamWriter sw = new(sWaterAreasFilename);
-
-                    foreach (Envelope area in waterAreas)
-                    {
-                        Envelope inter = area.Intersection(new Envelope(x, x + Tile.EdgeLength, y, y + Tile.EdgeLength));
-
-                        if (false == inter.IsNull)
-                        {
-                            sw.WriteLine($"{Math.Floor(inter.MinX)} {Math.Floor(inter.MinY)} {Math.Ceiling(inter.MaxX)} {Math.Ceiling(inter.MaxY)}");
-                        }
-                    }
                 }
             }
 
@@ -875,7 +846,56 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildWaterAreas(Tile tile)
         {
-            throw new NotImplementedException();
+            // Get topographic db tile name
+            TileNamer.Decode(tile.Name, out Envelope envBounds);
+            GeometryFactory factory = new();
+            Geometry bounds = factory.ToGeometry(envBounds);
+            string s12km12kmMapTileName = TileNamer.Encode((int)envBounds.MinX, (int)envBounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
+
+            string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+
+            Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
+
+            using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameWaterAreas));
+
+            foreach (Feature f in features)
+            {
+                int classification = (int)(long)f.Attributes["LUOKKA"];
+
+                if (true == TopographicDb.WaterPolygonClassesToRasterValues.ContainsKey(classification))
+                {
+                    Geometry intersection = f.Geometry.Intersection(bounds);
+
+                    if (intersection != Polygon.Empty)
+                    {
+                        for (int g = 0; g < intersection.NumGeometries; g++)
+                        {
+                            Polygon p = (Polygon)intersection.GetGeometryN(g);
+
+                            Point pointForLakeSurface = p.InteriorPoint;
+                            float fHeight = (float)Math.Round(tile.TerrainGrid.GetHeight(pointForLakeSurface.X, pointForLakeSurface.Y), 2);
+
+                            streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
+                            streamWriter.Write("[[");
+
+                            for (int i = 0; i < p.ExteriorRing.Coordinates.Length; i++)
+                            {
+                                Coordinate c = p.ExteriorRing.Coordinates[i];
+                                streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{fHeight}]");
+
+                                if (i < p.ExteriorRing.Coordinates.Length - 1)
+                                {
+                                    streamWriter.Write(",");
+                                }
+                            }
+
+                            // End polygon
+                            streamWriter.Write("]]");
+                            streamWriter.WriteLine("}");
+                        }
+                    }
+                }
+            }
         }
     }
 }

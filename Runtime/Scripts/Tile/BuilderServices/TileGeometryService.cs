@@ -67,6 +67,17 @@ namespace Kuoste.LidarWorld.Tile
                         // Read from file
                         _reader.BuildTrees(tile);
 
+                        sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameWaterAreas);
+
+                        if (!File.Exists(sFullFilename))
+                        {
+                            // Create from terrain
+                            _creator.BuildWaterAreas(tile);
+                        }
+
+                        // Read from file
+                        _reader.BuildWaterAreas(tile);
+
                         sw.Stop();
                         Debug.Log($"Tile {tile.Name} geometries created in {sw.ElapsedMilliseconds} ms.");
 
@@ -76,7 +87,7 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         _tileQueue.Enqueue(tile);
 
-                        iSleepMs = 5000;
+                        iSleepMs = 1000;
                     }
                 }
 

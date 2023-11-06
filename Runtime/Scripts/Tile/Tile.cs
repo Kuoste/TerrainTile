@@ -35,7 +35,7 @@ namespace Kuoste.LidarWorld.Tile
         public List<Vector3[]> BuildingVertices;
         public List<int[]> BuildingTriangles;
         public List<int> BuildingSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
-        public List<Envelope> WaterAreas;
+        public List<Polygon> WaterAreas;
 
         public int CompletedCount;
 
@@ -45,7 +45,7 @@ namespace Kuoste.LidarWorld.Tile
         public string FilenameGrid => Name + "_v" + Version + ".grid";
         public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
         public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
-        public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".txt";
+        public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".geojson";
         public string FilenameBuildings => Name + "_buildings_v" + Version + ".geojson";
         public string FilenameTrees => Name + "_trees_v" + Version + ".geojson";
     }
