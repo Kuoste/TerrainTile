@@ -15,7 +15,7 @@ namespace Kuoste.LidarWorld.Tile
         public ConcurrentDictionary<string, bool> DemDsmDone => _1kmDemDsmDone;
         public ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
 
-        public void BuildBuildingVertices(Tile tile)
+        public void BuildGeometries(Tile tile)
         {
             throw new System.NotImplementedException();
         }

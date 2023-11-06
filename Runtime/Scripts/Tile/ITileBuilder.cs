@@ -20,6 +20,6 @@ namespace Kuoste.LidarWorld.Tile
 
         void BuildTerrainTypeRaster(Tile tile);
 
-        void BuildBuildingVertices(Tile tile);
+        void BuildGeometries(Tile tile);
     }
 }

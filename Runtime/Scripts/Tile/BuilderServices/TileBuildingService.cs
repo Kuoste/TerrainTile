@@ -44,15 +44,15 @@ namespace Kuoste.LidarWorld.Tile
                     //    Stopwatch sw = Stopwatch.StartNew();
 
                     //    // Load from filesystem
-                    //    _reader.BuildBuildingVertices(tile);
+                    //    _reader.BuildGeometries(tile);
 
                     //    sw.Stop();
                     //    Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
                     //}
                     //else
                     //{
-                        // Buildings require surface heights to be available first
-                        _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
+                    // Buildings require surface heights to be available first
+                    _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
 
                         if (false == isDemDsmBuilt)
                             _reader.DemDsmDone.TryGetValue(tile.Name, out isDemDsmBuilt);
@@ -62,7 +62,7 @@ namespace Kuoste.LidarWorld.Tile
                             Stopwatch sw = Stopwatch.StartNew();
 
                             // Create from shapefiles and DSM
-                            _creator.BuildBuildingVertices(tile);
+                            _creator.BuildGeometries(tile);
 
                             sw.Stop();
                             Debug.Log($"Tile {tile.Name} building vertices created in {sw.ElapsedMilliseconds} ms.");
