@@ -145,89 +145,15 @@ namespace Kuoste.LidarWorld.Tile
             Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
             sw.Restart();
 
-            _tile.Trees = new();
-            float fMaxHeightForTile = float.MinValue;
-
-            for (int iRow = 0; iRow < _tile.TerrainGrid.Bounds.RowCount; iRow++)
-            {
-                for (int jCol = 0; jCol < _tile.TerrainGrid.Bounds.ColumnCount; jCol++)
-                {
-                    const int iRadius = 2;
-                    int iHighVegetationCount = 0;
-
-                    List<BinPoint> centerPoints = _tile.TerrainGrid.GetPoints(iRow, jCol);
-
-                    if (centerPoints.Count == 0 || centerPoints[0].Class != (byte)PointCloud05p.Classes.HighVegetation)
-                    {
-                        continue;
-                    }
-
-                    float fMaxHeight = float.MinValue;
-
-                    for (int ii = iRow - iRadius; ii <= iRow + iRadius; ii++)
-                    {
-                        for (int jj = jCol - iRadius; jj <= jCol + iRadius; jj++)
-                        {
-                            if (ii < 0 || ii > _tile.TerrainGrid.Bounds.RowCount - 1 ||
-                                jj < 0 || jj > _tile.TerrainGrid.Bounds.ColumnCount - 1)
-                            {
-                                continue;
-                            }
-
-                            List<BinPoint> neighborhoodPoints = _tile.TerrainGrid.GetPoints(ii, jj);
-
-                            foreach (BinPoint p in neighborhoodPoints)
-                            {
-                                if (p.Class == (byte)PointCloud05p.Classes.HighVegetation)
-                                {
-                                    fMaxHeight = Math.Max(fMaxHeight, p.Z);
-
-                                    iHighVegetationCount++;
-                                }
-                                else
-                                {
-                                    // Points are sorted by descending height so after high vegetation
-                                    // there are no more high vegetation points
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (iHighVegetationCount < 15 || fMaxHeight > centerPoints[0].Z)
-                        {
-                            continue;
-                        }
-
-                        fMaxHeight -= _tile.TerrainGrid.GetGroundHeight(iRow, jCol);
-
-                        // Ground height is not always available (e.g. triangulation on corners of the tile)
-                        if (float.IsNaN(fMaxHeight))
-                        {
-                            continue;
-                        }
-
-                        fMaxHeightForTile = Math.Max(fMaxHeightForTile, fMaxHeight);
-
-                        _tile.Trees.Add(new(iRow, jCol, fMaxHeight));
-                    }
-                }
-            }
-
-
-            sw.Stop();
-            Debug.Log($"Tile {_tile.Name}: {_tile.Trees.Count} trees determined in {sw.ElapsedMilliseconds} ms.");
-            sw.Restart();
-
             TreeInstance[] trees = new TreeInstance[_tile.Trees.Count];
 
             for (int t = 0; t < _tile.Trees.Count; t++)
             {
-                float fScale = (float)_tile.Trees[t].Z / fMaxHeightForTile;
+                float fScale = 1f;//  (float)_tile.Trees[t].Z / fMaxHeightForTile;
 
                 trees[t] = new()
                 {
-                    position = new Vector3((float)_tile.Trees[t].Y / _tile.TerrainGrid.Bounds.ColumnCount, 0,
-                                           (float)_tile.Trees[t].X / _tile.TerrainGrid.Bounds.RowCount),
+                    position = new Vector3((float)_tile.Trees[t].X, 0, (float)_tile.Trees[t].Y),
                     prototypeIndex = UnityEngine.Random.Range(0, terrainData.treePrototypes.Length),
                     widthScale = fScale,
                     heightScale = fScale,

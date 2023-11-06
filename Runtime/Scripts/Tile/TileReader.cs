@@ -19,7 +19,7 @@ namespace Kuoste.LidarWorld.Tile
         public ConcurrentDictionary<string, bool> DemDsmDone => _1kmDemDsmDone;
         public ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
 
-        public void BuildGeometries(Tile tile)
+        public void BuildBuildings(Tile tile)
         {
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameBuildings);
@@ -194,6 +194,44 @@ namespace Kuoste.LidarWorld.Tile
         public void SetOriginalDirectory(string sDirectory)
         {
             throw new System.NotImplementedException();
+        }
+
+        public void BuildTrees(Tile tile)
+        {
+            TileNamer.Decode(tile.Name, out Envelope bounds);
+            string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameTrees);
+
+            tile.Trees = new();
+
+            string[] sTrees = File.ReadAllText(sFullFilename).Split("Point");
+
+            foreach (string sTree in sTrees)
+            {
+                string[] sCordinates = sTree.Split("[", StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (string sCoordinate in sCordinates)
+                {
+                    if (!char.IsDigit(sCoordinate[0]))
+                        continue;
+
+                    var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
+
+                    // Delete the last character which is a closing bracket and everyting after it
+                    coords[2] = coords[2].Substring(0, coords[2].IndexOf(']'));
+
+                    tile.Trees.Add(new(
+                        (double.Parse(coords[0]) - bounds.MinX) / Tile.EdgeLength,
+                        (double.Parse(coords[1]) - bounds.MinY) / Tile.EdgeLength,
+                        double.Parse(coords[2])));
+                }
+            }
+
+            Interlocked.Increment(ref tile.CompletedCount);
+        }
+
+        public void BuildWaterAreas(Tile tile)
+        {
+            throw new NotImplementedException();
         }
     }
 }

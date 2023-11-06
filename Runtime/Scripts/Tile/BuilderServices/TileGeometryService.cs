@@ -9,14 +9,14 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileBuildingService : ITileBuilderService
+    public class TileGeometryService : ITileBuilderService
     {
         ITileBuilder _reader;
         ITileBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
-        public TileBuildingService(ITileBuilder reader, ITileBuilder creator)
+        public TileGeometryService(ITileBuilder reader, ITileBuilder creator)
         {
             _reader = reader;
             _creator = creator;
@@ -35,50 +35,48 @@ namespace Kuoste.LidarWorld.Tile
             {
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
-                    // Currently buildings are not saved
+                    // Buildings require surface heights to be available first
+                    _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
 
-                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
+                    if (false == isDemDsmBuilt)
+                        _reader.DemDsmDone.TryGetValue(tile.Name, out isDemDsmBuilt);
 
-                    if (File.Exists(sFullFilename))
+                    if (true == isDemDsmBuilt)
                     {
                         Stopwatch sw = Stopwatch.StartNew();
 
-                        // Load from filesystem
-                        _reader.BuildGeometries(tile);
+                        string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
+
+                        if (!File.Exists(sFullFilename))
+                        {
+                            // Create from shapefiles and DSM
+                            _creator.BuildBuildings(tile);
+                        }
+
+                        // Read from file
+                        _reader.BuildBuildings(tile);
+
+                        sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameTrees);
+
+                        if (!File.Exists(sFullFilename))
+                        {
+                            // Create from terrain
+                            _creator.BuildTrees(tile);
+                        }
+
+                        // Read from file
+                        _reader.BuildTrees(tile);
 
                         sw.Stop();
-                        Debug.Log($"Tile {tile.Name} building vertices read in {sw.ElapsedMilliseconds} ms.");
+                        Debug.Log($"Tile {tile.Name} geometries created in {sw.ElapsedMilliseconds} ms.");
 
+                        iSleepMs = 100;
                     }
                     else
-                    { 
-                        // Buildings require surface heights to be available first
-                        _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
+                    {
+                        _tileQueue.Enqueue(tile);
 
-                        if (false == isDemDsmBuilt)
-                            _reader.DemDsmDone.TryGetValue(tile.Name, out isDemDsmBuilt);
-
-                        if (true == isDemDsmBuilt)
-                        {
-                            Stopwatch sw = Stopwatch.StartNew();
-
-                            // Create from shapefiles and DSM
-                            _creator.BuildGeometries(tile);
-
-                            // Load from filesystem
-                            _reader.BuildGeometries(tile);
-
-                            sw.Stop();
-                            Debug.Log($"Tile {tile.Name} building vertices created in {sw.ElapsedMilliseconds} ms.");
-
-                            iSleepMs = 1000;
-                        }
-                        else
-                        {
-                            _tileQueue.Enqueue(tile);
-
-                            iSleepMs = 10000;
-                        }
+                        iSleepMs = 5000;
                     }
                 }
 

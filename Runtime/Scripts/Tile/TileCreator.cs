@@ -63,11 +63,6 @@ namespace Kuoste.LidarWorld.Tile
         private ConcurrentDictionary<string, bool> _12kmRoadsDone = new();
 
         /// <summary>
-        /// Keep track of the shapefiles so that we don't try to process the same tile multiple times.
-        /// </summary>
-        private ConcurrentDictionary<string, bool> _1kmGeometriesDone = new();
-
-        /// <summary>
         /// Keep track of the terrain type shapefiles so that we don't try to process the same file multiple times.
         /// </summary>
         private ConcurrentDictionary<string, bool> _12kmTerrainTypesDone = new();
@@ -620,40 +615,12 @@ namespace Kuoste.LidarWorld.Tile
             Interlocked.Increment(ref tile.CompletedCount);
         }
 
-        public void BuildGeometries(Tile tile)
-        {
-
-            // Check if the tile is already being processed and add it to the dictionary if not.
-            if (true == _1kmGeometriesDone.TryGetValue(tile.Name, out bool bIsCompleted))
-            {
-                if (bIsCompleted)
-                {
-                    Debug.Log($"Geometries for {tile.Name} are already completed.");
-                }
-                else
-                {
-                    Debug.Log($"Geometries for {tile.Name} are already under work.");
-                }
-
-                return;
-            }
-
-            _1kmGeometriesDone.TryAdd(tile.Name, false);
-
-            BuildBuildings(tile);
-
-
-            _1kmGeometriesDone.TryUpdate(tile.Name, true, false);
-            //Interlocked.Increment(ref tile.CompletedCount);
-        }
-
-        private void BuildBuildings(Tile tile)
+        public void BuildBuildings(Tile tile)
         {
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
 
-            // Load buildings
             using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameBuildings));
 
             string sFullFilename = Path.Combine(DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
@@ -823,6 +790,92 @@ namespace Kuoste.LidarWorld.Tile
                     streamWriter.WriteLine("]}");
                 }
             }
+        }
+
+        public void BuildTrees(Tile tile)
+        {
+            //float fMaxTreeHeight = float.MinValue;
+
+            using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameTrees));
+
+            for (int iRow = 0; iRow < tile.TerrainGrid.Bounds.RowCount; iRow++)
+            {
+                for (int jCol = 0; jCol < tile.TerrainGrid.Bounds.ColumnCount; jCol++)
+                {
+                    const int iRadius = 2;
+                    int iHighVegetationCount = 0;
+
+                    List<BinPoint> centerPoints = tile.TerrainGrid.GetPoints(iRow, jCol);
+
+                    if (centerPoints.Count == 0 || centerPoints[0].Class != (byte)PointCloud05p.Classes.HighVegetation)
+                    {
+                        continue;
+                    }
+
+                    float fTreeHeight = float.MinValue;
+
+                    for (int ii = iRow - iRadius; ii <= iRow + iRadius; ii++)
+                    {
+                        for (int jj = jCol - iRadius; jj <= jCol + iRadius; jj++)
+                        {
+                            if (ii < 0 || ii > tile.TerrainGrid.Bounds.RowCount - 1 ||
+                                jj < 0 || jj > tile.TerrainGrid.Bounds.ColumnCount - 1)
+                            {
+                                continue;
+                            }
+
+                            List<BinPoint> neighborhoodPoints = tile.TerrainGrid.GetPoints(ii, jj);
+
+                            foreach (BinPoint p in neighborhoodPoints)
+                            {
+                                if (p.Class == (byte)PointCloud05p.Classes.HighVegetation)
+                                {
+                                    fTreeHeight = Math.Max(fTreeHeight, p.Z);
+
+                                    iHighVegetationCount++;
+                                }
+                                else
+                                {
+                                    // Points are sorted by descending height so after high vegetation
+                                    // there are no more high vegetation points
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (iHighVegetationCount < 15 || fTreeHeight > centerPoints[0].Z)
+                    {
+                        continue;
+                    }
+
+                    fTreeHeight -= tile.TerrainGrid.GetGroundHeight(iRow, jCol);
+
+                    // Ground height is not always available (e.g. triangulation on corners of the tile)
+                    if (float.IsNaN(fTreeHeight))
+                    {
+                        continue;
+                    }
+
+                    //fMaxTreeHeight = Math.Max(fMaxTreeHeight, fMaxHeight);
+
+                    // Write Point
+                    streamWriter.Write("{ \"type\":\"Point\", \"coordinates\": ");
+                    tile.TerrainGrid.GetGridCoordinates(iRow, jCol, out double x, out double y);
+                    streamWriter.Write($"[{x},{y},{fTreeHeight}]");
+                    streamWriter.WriteLine("}");
+                }
+
+            }
+
+            //sw.Stop();
+            //Debug.Log($"Tile {_tile.Name}: {_tile.Trees.Count} trees determined in {sw.ElapsedMilliseconds} ms.");
+            //sw.Restart();
+        }
+
+        public void BuildWaterAreas(Tile tile)
+        {
+            throw new NotImplementedException();
         }
     }
 }
