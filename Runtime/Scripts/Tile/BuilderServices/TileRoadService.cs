@@ -11,8 +11,8 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileRoadService : ITileBuilderService
     {
-        ITileBuilder _reader;
-        ITileBuilder _creator;
+        private readonly ITileBuilder _reader;
+        private readonly ITileBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
@@ -33,7 +33,7 @@ namespace Kuoste.LidarWorld.Tile
             {
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
-                    Stopwatch sw = Stopwatch.StartNew();
+                    //Stopwatch sw = Stopwatch.StartNew();
 
                     string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameRoads);
 
@@ -48,8 +48,8 @@ namespace Kuoste.LidarWorld.Tile
                         _creator.BuildRoadRaster(tile);
                     }
 
-                    sw.Stop();
-                    Debug.Log($"Tile {tile.Name} roads built in {sw.ElapsedMilliseconds} ms.");
+                    //sw.Stop();
+                    //Debug.Log($"Tile {tile.Name} roads built in {sw.ElapsedMilliseconds} ms.");
                 }
 
                 Thread.Sleep(1000);

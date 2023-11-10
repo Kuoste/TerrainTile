@@ -4,15 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
     public class TileGeometryService : ITileBuilderService
     {
-        ITileBuilder _reader;
-        ITileBuilder _creator;
+        private readonly ITileBuilder _reader;
+        private readonly ITileBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
@@ -29,19 +28,23 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuilderThread()
         {
-            int iSleepMs = 1000;
-
             while (true)
             {
-                if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
+                if (_tileQueue.TryPeek(out Tile tile))
                 {
                     // Buildings require surface heights to be available first
-                    _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmBuilt);
+                    bool bIsDemDsmBuilt = false;
 
-                    if (false == isDemDsmBuilt)
-                        _reader.DemDsmDone.TryGetValue(tile.Name, out isDemDsmBuilt);
+                    if (true == _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmCreated))
+                    {
+                        bIsDemDsmBuilt = isDemDsmCreated;
+                    }
+                    else if (true == _reader.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmRead))
+                    {
+                        bIsDemDsmBuilt |= isDemDsmRead;
+                    }
 
-                    if (true == isDemDsmBuilt)
+                    if (true == bIsDemDsmBuilt && _tileQueue.TryDequeue(out tile))
                     {
                         Stopwatch sw = Stopwatch.StartNew();
 
@@ -80,18 +83,10 @@ namespace Kuoste.LidarWorld.Tile
 
                         sw.Stop();
                         Debug.Log($"Tile {tile.Name} geometries created in {sw.ElapsedMilliseconds} ms.");
-
-                        iSleepMs = 100;
-                    }
-                    else
-                    {
-                        _tileQueue.Enqueue(tile);
-
-                        iSleepMs = 1000;
                     }
                 }
 
-                Thread.Sleep(iSleepMs);
+                Thread.Sleep(100);
             }
         }
     }

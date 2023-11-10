@@ -11,6 +11,8 @@ namespace Kuoste.LidarWorld.Tile
     {
         private Tile _tile;
 
+        private const int iHeightOffset = 100;
+
         public void SetTile(Tile tile)
         {
             _tile = tile;
@@ -19,34 +21,35 @@ namespace Kuoste.LidarWorld.Tile
         // Start is called before the first frame update
         void Start()
         {
-            Stopwatch sw = Stopwatch.StartNew();
+            Stopwatch swTotal = Stopwatch.StartNew();
+            //Stopwatch sw = Stopwatch.StartNew();
 
             TerrainData terrainData = GetComponent<Terrain>().terrainData;
 
             SetAlphaMaps(terrainData);
 
-            sw.Stop();
-            Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
+            //sw.Stop();
+            //Debug.Log($"Setting alphamaps for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            //sw.Restart();
 
             AddWaterPlanes();
 
-            sw.Stop();
-            Debug.Log($"Setting water planes for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
+            //sw.Stop();
+            //Debug.Log($"Setting water planes for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            //sw.Restart();
 
             AddTrees(terrainData);
 
-            sw.Stop();
-            Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
+            //sw.Stop();
+            //Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            //sw.Restart();
 
             // Scale terrain height
             for (int x = 0; x < terrainData.heightmapResolution; x++)
             {
                 for (int y = 0; y < terrainData.heightmapResolution; y++)
                 {
-                    _tile.TerrainGrid.Dem[x, y] /= _tile.DemMaxHeight;
+                    _tile.TerrainGrid.Dem[x, y] = (_tile.TerrainGrid.Dem[x, y] + iHeightOffset) / _tile.DemMaxHeight;
                 }
             }
 
@@ -56,15 +59,21 @@ namespace Kuoste.LidarWorld.Tile
             //Terrain.activeTerrain.Flush();
             //terrain.GetComponent<Terrain>().Flush();
 
-            sw.Stop();
-            Debug.Log($"Setting DEM for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
+            //sw.Stop();
+            //Debug.Log($"Setting DEM for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            //sw.Restart();
 
             AddBuildings();
 
-            sw.Stop();
-            Debug.Log($"Setting buildings for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
-            sw.Restart();
+            //sw.Stop();
+            //Debug.Log($"Setting buildings for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
+            //sw.Restart();
+
+            swTotal.Stop();
+            Debug.Log($"Tile {_tile.Name} drawn in {swTotal.Elapsed.TotalSeconds} s");
+
+            // Remove the tile updater component to save memory
+            Destroy(this);
         }
 
         private void AddBuildings()
@@ -85,15 +94,15 @@ namespace Kuoste.LidarWorld.Tile
                 go.AddComponent<MeshFilter>().mesh = mesh;
                 go.AddComponent<MeshRenderer>().materials = new Material[]
                 {
-                    Resources.Load<Material>("Materials/BuildingWall_Mat"),
-                    Resources.Load<Material>("Materials/BuildingRoof_Mat")
+                    Resources.Load<Material>("Materials/BuildingRoof_Mat"),
+                    Resources.Load<Material>("Materials/BuildingWall_Mat")
                 };
 
                 mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
 
                 go.transform.parent = transform;
-                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                go.transform.SetLocalPositionAndRotation(new Vector3(0, iHeightOffset, 0), Quaternion.identity);
             }
         }
 
@@ -186,7 +195,7 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int t = 0; t < _tile.Trees.Count; t++)
             {
-                float fScale = (float)_tile.Trees[t].Z / 40;
+                float fScale = (float)_tile.Trees[t].Z / 30;
 
                 trees[t] = new()
                 {
@@ -232,7 +241,7 @@ namespace Kuoste.LidarWorld.Tile
 
                 Vector3 position = new(
                     (float)(area.Centre.X - bounds.MinX),
-                    fWaterHeight,
+                    fWaterHeight + iHeightOffset,
                     (float)(area.Centre.Y - bounds.MinY));
 
                 go.transform.SetLocalPositionAndRotation(position, Quaternion.identity);

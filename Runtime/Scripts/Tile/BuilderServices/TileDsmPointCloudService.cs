@@ -13,8 +13,8 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileDsmPointCloudService : ITileBuilderService
     {
-        ITileBuilder _reader;
-        ITileBuilder _creator;
+        private readonly ITileBuilder _reader;
+        private readonly ITileBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 

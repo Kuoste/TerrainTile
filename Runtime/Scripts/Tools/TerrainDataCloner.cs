@@ -18,7 +18,7 @@ namespace Kuoste.LidarWorld.Tools
         /// <returns>New terrain data instance</returns>
         public static TerrainData Clone(TerrainData original)
         {
-            Stopwatch sw = Stopwatch.StartNew();
+            //Stopwatch sw = Stopwatch.StartNew();
 
             TerrainData dup = new();
 
@@ -27,9 +27,9 @@ namespace Kuoste.LidarWorld.Tools
 
             dup.detailPrototypes = CloneDetailPrototypes(original.detailPrototypes);
 
-            sw.Stop();
-            UnityEngine.Debug.Log($"TerrainData.Clone CloneDetailPrototypes took {sw.ElapsedMilliseconds} ms");
-            sw.Restart();
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone CloneDetailPrototypes took {sw.ElapsedMilliseconds} ms");
+            //sw.Restart();
 
             dup.SetDetailResolution(original.detailResolution, original.detailResolutionPerPatch);
 
@@ -66,8 +66,8 @@ namespace Kuoste.LidarWorld.Tools
 
             //dup.treeInstances = CloneTreeInstances(original.treeInstances);
 
-            sw.Stop();
-            UnityEngine.Debug.Log($"TerrainData.Clone took {sw.ElapsedMilliseconds} ms");
+            //sw.Stop();
+            //UnityEngine.Debug.Log($"TerrainData.Clone took {sw.ElapsedMilliseconds} ms");
 
             return dup;
         }

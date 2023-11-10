@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Debug = UnityEngine.Debug;
 
@@ -47,29 +48,50 @@ namespace Kuoste.LidarWorld.Tile
         public ConcurrentDictionary<string, bool> DemDsmDone => _1kmDemDsmDone;
 
         /// <summary>
+        /// For saving the status of the 1x1 km2 tiles so that they are available for the Geometry service
+        /// </summary>
+        private readonly ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
+
+        /// <summary>
         /// Keep track of the las files so that we don't try to process the same tile multiple times.
         /// </summary>
-        private ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
+        private readonly ConcurrentDictionary<string, bool> _3kmDemDsmDone = new();
 
         /// <summary>
         /// Keep track of the roads shapefiles so that we don't try to process the same file multiple times.
         /// </summary>
-        private ConcurrentDictionary<string, bool> _12kmRoadsDone = new();
+        private readonly ConcurrentDictionary<string, bool> _12kmRoadsDone = new();
 
         /// <summary>
         /// Keep track of the terrain type shapefiles so that we don't try to process the same file multiple times.
         /// </summary>
-        private ConcurrentDictionary<string, bool> _12kmTerrainTypesDone = new();
+        private readonly ConcurrentDictionary<string, bool> _12kmTerrainTypesDone = new();
 
         ///// <summary>
         ///// Keep track of the received tiles so that we can update the tile features when the tile is ready.
         ///// </summary>
         //private ConcurrentDictionary<string, Tile> _tilesReceived = new();
 
+        /// <summary>
+        /// For detecting when we should stop building tiles.
+        /// </summary>
+        private CancellationToken _token;
+
+        public void SetCancellationToken(CancellationToken token)
+        {
+            _token = token;
+        }
+
         public void BuildDemAndDsmPointCloud(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
+            TileNamer.Decode(tile.Name, out Envelope bounds1km);
+            string s3km3kmTileName = TileNamer.Encode((int)bounds1km.MinX, (int)bounds1km.MinY, m_iSupportedInputTileWidth);
+
             // Check if the tile is already being processed
-            if (true == _1kmDemDsmDone.TryGetValue(tile.Name, out bool bIsCompleted))
+            if (true == _3kmDemDsmDone.TryGetValue(s3km3kmTileName, out bool bIsCompleted))
             {
                 if (bIsCompleted)
                 {
@@ -87,19 +109,7 @@ namespace Kuoste.LidarWorld.Tile
                 return;
             }
 
-            // Add 1km2 tile names to the dictionary
-            TileNamer.Decode(tile.Name, out Envelope bounds1km);
-            string s3km3kmTileName = TileNamer.Encode((int)bounds1km.MinX, (int)bounds1km.MinY, m_iSupportedInputTileWidth);
-            TileNamer.Decode(s3km3kmTileName, out Envelope bounds3km);
-
-            for (double x = bounds3km.MinX; x < bounds3km.MaxX; x += Tile.EdgeLength)
-            {
-                for (double y = bounds3km.MinY; y < bounds3km.MaxY; y += Tile.EdgeLength)
-                {
-                    string s1km1kmTilename = TileNamer.Encode((int)x, (int)y, Tile.EdgeLength);
-                    _1kmDemDsmDone.TryAdd(s1km1kmTilename, false);
-                }
-            }
+            _3kmDemDsmDone.TryAdd(s3km3kmTileName, false);
 
             ILasFileReader reader = new LasZipFileReader();
 
@@ -107,7 +117,7 @@ namespace Kuoste.LidarWorld.Tile
 
             reader.ReadHeader(sFilename);
 
-            Stopwatch sw = Stopwatch.StartNew();
+            //Stopwatch sw = Stopwatch.StartNew();
 
             reader.OpenReader(sFilename);
 
@@ -135,6 +145,9 @@ namespace Kuoste.LidarWorld.Tile
 
             while ((p = reader.ReadPoint()) != null)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 double x = p.x;
                 double y = p.y;
                 double z = p.z;
@@ -429,6 +442,9 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 Stopwatch sw2 = Stopwatch.StartNew();
 
                 SurfaceTriangulation tri = triangulations[i];
@@ -455,6 +471,9 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 string s1km1kmTilename = s3km3kmTileName + "_" + (i + 1).ToString();
 
                 Tile t = new() { Name = s1km1kmTilename, Version = tile.Version };
@@ -464,20 +483,24 @@ namespace Kuoste.LidarWorld.Tile
 
                 if (tile.Name == s1km1kmTilename)
                 {
-                    // Save the grid to the tile
+                    // Mark the tile that was asked as completed
                     tile.TerrainGrid = grids[i];
+                    _1kmDemDsmDone.TryAdd(tile.Name, true);
+                    Interlocked.Increment(ref tile.CompletedCount);
                 }
-                
-                _1kmDemDsmDone.TryUpdate(s1km1kmTilename, true, false);
             }
 
-            Interlocked.Increment(ref tile.CompletedCount);
+            _3kmDemDsmDone.TryUpdate(s3km3kmTileName, true, false);
 
-            Debug.Log($"Las processing finished! Total time for tile {s3km3kmTileName} was {sw.Elapsed.TotalSeconds} seconds.");
+            //sw.Stop();
+            //Debug.Log($"Las processing finished! Total time for tile {s3km3kmTileName} was {sw.Elapsed.TotalSeconds} seconds.");
         }
 
         public void BuildTerrainTypeRaster(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
@@ -505,6 +528,8 @@ namespace Kuoste.LidarWorld.Tile
             _12kmTerrainTypesDone.TryAdd(s12km12kmMapTileName, false);
 
             Rasteriser rasteriser = new();
+            rasteriser.SetCancellationToken(_token);
+
             int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * m_iUnityAlphamapResolution;
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
@@ -522,6 +547,9 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
+                    if (_token.IsCancellationRequested)
+                        return;
+
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
                     // Save to filesystem
@@ -535,6 +563,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildRoadRaster(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
@@ -562,6 +593,8 @@ namespace Kuoste.LidarWorld.Tile
             _12kmRoadsDone.TryAdd(s12km12kmMapTileName, false);
 
             Rasteriser rasteriser = new();
+            rasteriser.SetCancellationToken(_token);
+
             int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * m_iUnityAlphamapResolution;
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
@@ -573,6 +606,9 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
+                    if (_token.IsCancellationRequested)
+                        return;
+
                     Tile t = new() { Name = TileNamer.Encode(x, y, Tile.EdgeLength), Version = tile.Version };
 
                     // Save to filesystem
@@ -586,6 +622,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildBuildings(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
@@ -601,11 +640,22 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (Feature f in features)
             {
-                // Make sure f is inside bounds
-                if (false == bounds.Contains(f.Geometry.EnvelopeInternal))
+                if (_token.IsCancellationRequested)
+                {
+                    streamWriter.Close();
+                    File.Delete(Path.Combine(DirectoryIntermediate, tile.FilenameBuildings));
+                    return;
+                }
+
+                // Make sure f is inside bounds.
+                Envelope featureBounds = f.Geometry.EnvelopeInternal;
+                if (featureBounds.MinX < bounds.MinX || featureBounds.MaxX >= bounds.MaxX ||
+                    featureBounds.MinY < bounds.MinY || featureBounds.MaxY >= bounds.MaxY)
                 {
                     continue;
                 }
+
+
 
                 int classification = (int)(long)f.Attributes["LUOKKA"];
 
@@ -624,6 +674,7 @@ namespace Kuoste.LidarWorld.Tile
                     LineString buildingExterior = buildingPolygon.ExteriorRing;
 
                     List<float> buildingHeights = new();
+                    List<float> buildingGroundHeights = new();
 
                     for (int i = 0; i < buildingExterior.NumPoints; i++)
                     {
@@ -637,7 +688,20 @@ namespace Kuoste.LidarWorld.Tile
                         {
                             buildingHeights.Add(bp.Z);
                         }
+
+                        double dGroundHeight = tile.TerrainGrid.GetHeight(c.X, c.Y);
+                        if (!double.IsNaN(dGroundHeight))
+                        {
+                            buildingGroundHeights.Add((float)dGroundHeight);
+                        }
                     }
+
+                    if (buildingGroundHeights.Count == 0)
+                    {
+                        Debug.Log("No ground height for a building found.");
+                        continue;
+                    }
+                    buildingGroundHeights.Sort();
 
                     // Create roof triangulation
 
@@ -656,7 +720,7 @@ namespace Kuoste.LidarWorld.Tile
                         buildingBounds.MaxY - buildingBounds.MinY);
 
                     // Make faster by skipping some coordinates
-                    int iSkip = 3;
+                    int iSkip = 2;
                     for (int x = (int)buildingBounds.MinX; x < buildingBounds.MaxX; x += iSkip)
                     {
                         for (int y = (int)buildingBounds.MinY; y < buildingBounds.MaxY; y += iSkip)
@@ -673,14 +737,14 @@ namespace Kuoste.LidarWorld.Tile
                         }
                     }
 
-                    if (buildingHeights.Count == 0)
+                    if (buildingHeights.Count < 10)
                     {
                         continue;
                     }
 
-                    // 10th percentile of building heights. Aiming for the actual roof height, not the walls or overhanging trees.
+                    // Take a percentile of building heights. Aiming for the actual roof height, not the walls or overhanging trees.
                     buildingHeights.Sort();
-                    float fBuildingHeight = buildingHeights[buildingHeights.Count / 10];
+                    float fBuildingHeight = buildingHeights[buildingHeights.Count / 40];
 
                     // Add also building corners to get the full roof
                     for (int i = 0; i < buildingExterior.NumPoints; i++)
@@ -743,7 +807,15 @@ namespace Kuoste.LidarWorld.Tile
                     for (int i = 0; i < buildingExterior.Coordinates.Length; i++)
                     {
                         Coordinate c = buildingExterior.Coordinates[i];
-                        streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{tile.TerrainGrid.GetHeight(c.X, c.Y)}]");
+
+                        double dGroundHeight = tile.TerrainGrid.GetHeight(c.X, c.Y);
+                        if (double.IsNaN(dGroundHeight))
+                        {
+                            // buildingGroundHeights is sorted, so the first value is the lowest
+                            dGroundHeight = buildingGroundHeights[0];
+                        }
+
+                        streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{dGroundHeight}]");
 
                         if (i < buildingExterior.Coordinates.Length - 1)
                         {
@@ -763,7 +835,8 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildTrees(Tile tile)
         {
-            //float fMaxTreeHeight = float.MinValue;
+            if (_token.IsCancellationRequested)
+                return;
 
             using StreamWriter streamWriter = new(Path.Combine(DirectoryIntermediate, tile.FilenameTrees));
 
@@ -771,6 +844,13 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int jCol = 0; jCol < tile.TerrainGrid.Bounds.ColumnCount; jCol++)
                 {
+                    if (_token.IsCancellationRequested)
+                    {
+                        streamWriter.Close();
+                        File.Delete(Path.Combine(DirectoryIntermediate, tile.FilenameTrees));
+                        return;
+                    }
+
                     const int iRadius = 2;
                     int iHighVegetationCount = 0;
 
@@ -813,9 +893,9 @@ namespace Kuoste.LidarWorld.Tile
                         }
                     }
 
-                    // There has to be at least 15 high vegetation points in the neighborhood
+                    // There has to be enough high vegetation points in the neighborhood
                     // and the tree has to be the highest point.
-                    if (iHighVegetationCount < 15 || fTreeHeight > centerPoints[0].Z)
+                    if (iHighVegetationCount < 5 || fTreeHeight > centerPoints[0].Z)
                     {
                         continue;
                     }
@@ -831,9 +911,10 @@ namespace Kuoste.LidarWorld.Tile
                     //fMaxTreeHeight = Math.Max(fMaxTreeHeight, fMaxHeight);
 
                     // Write Point
-                    streamWriter.Write("{ \"type\":\"Point\", \"coordinates\": ");
+                    streamWriter.Write("{\"type\":\"Point\",\"coordinates\":");
                     tile.TerrainGrid.GetGridCoordinates(iRow, jCol, out double x, out double y);
-                    streamWriter.Write($"[{x},{y},{fTreeHeight}]");
+                    // Write as int since the accuracy is in ~meters
+                    streamWriter.Write($"[{(int)x},{(int)y},{(int)fTreeHeight}]");
                     streamWriter.WriteLine("}");
                 }
 
@@ -846,6 +927,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildWaterAreas(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope envBounds);
             GeometryFactory factory = new();
@@ -860,6 +944,13 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (Feature f in features)
             {
+                if (_token.IsCancellationRequested)
+                {
+                    streamWriter.Close();
+                    File.Delete(Path.Combine(DirectoryIntermediate, tile.FilenameWaterAreas));
+                    return;
+                }
+
                 int classification = (int)(long)f.Attributes["LUOKKA"];
 
                 if (true == TopographicDb.WaterPolygonClassesToRasterValues.ContainsKey(classification))

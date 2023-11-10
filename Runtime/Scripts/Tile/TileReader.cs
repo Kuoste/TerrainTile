@@ -17,10 +17,27 @@ namespace Kuoste.LidarWorld.Tile
         public string DirectoryOriginal { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
 
         public ConcurrentDictionary<string, bool> DemDsmDone => _1kmDemDsmDone;
-        public ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
+
+        /// <summary>
+        /// For saving the status of the 1x1 km2 tiles so that they are available for the Geometry service
+        /// </summary>
+        private readonly ConcurrentDictionary<string, bool> _1kmDemDsmDone = new();
+
+        /// <summary>
+        /// For detecting when we should stop building tiles.
+        /// </summary>
+        private CancellationToken _token;
+
+        public void SetCancellationToken(CancellationToken token)
+        {
+            _token = token;
+        }
 
         public void BuildBuildings(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameBuildings);
 
@@ -32,6 +49,9 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sBuilding in sBuildings)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 List<Vector3> buildingVertices = new();
                 List<int> buildingTriangles = new();
                 int iStartingTrinagleIndexForWalls = 0;
@@ -53,7 +73,7 @@ namespace Kuoste.LidarWorld.Tile
                         var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
 
                         // Delete the last character which is a closing bracket and everyting after it
-                        coords[2] = coords[2].Substring(0, coords[2].IndexOf(']'));
+                        coords[2] = coords[2][..coords[2].IndexOf(']')];
 
                         coordinates.Add(new(
                             double.Parse(coords[0]),
@@ -134,6 +154,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildRoadRaster(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameRoads);
 
             tile.Roads = HeightMap.CreateFromAscii(sFullFilename);
@@ -143,6 +166,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildDemAndDsmPointCloud(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameGrid);
 
             tile.TerrainGrid = VoxelGrid.Deserialize(sFullFilename);
@@ -153,6 +179,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildTerrainTypeRaster(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameTerrainType);
 
             // Load terrain type raster
@@ -174,6 +203,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildTrees(Tile tile)
         {
+            if (_token.IsCancellationRequested)
+                return;
+
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameTrees);
 
@@ -183,6 +215,9 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sTree in sTrees)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 string[] sCordinates = sTree.Split("[", StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string sCoordinate in sCordinates)
@@ -193,7 +228,7 @@ namespace Kuoste.LidarWorld.Tile
                     var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
 
                     // Delete the last character which is a closing bracket and everyting after it
-                    coords[2] = coords[2].Substring(0, coords[2].IndexOf(']'));
+                    coords[2] = coords[2][..coords[2].IndexOf(']')];
 
                     tile.Trees.Add(new(
                         (double.Parse(coords[0]) - bounds.MinX) / Tile.EdgeLength,
@@ -207,7 +242,9 @@ namespace Kuoste.LidarWorld.Tile
 
         public void BuildWaterAreas(Tile tile)
         {
-            TileNamer.Decode(tile.Name, out Envelope bounds);
+            if (_token.IsCancellationRequested)
+                return;
+
             string sFullFilename = Path.Combine(DirectoryIntermediate, tile.FilenameWaterAreas);
 
             tile.WaterAreas = new();
@@ -216,6 +253,9 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sArea in sAreas)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);
 
                 List<CoordinateZ> coordinates = new();
@@ -228,7 +268,7 @@ namespace Kuoste.LidarWorld.Tile
                     var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
 
                     // Delete the last character which is a closing bracket and everyting after it
-                    coords[2] = coords[2].Substring(0, coords[2].IndexOf(']'));
+                    coords[2] = coords[2][..coords[2].IndexOf(']')];
 
                     coordinates.Add(new(
                         double.Parse(coords[0]),
