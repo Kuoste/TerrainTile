@@ -10,15 +10,24 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileGeometryService : ITileBuilderService
     {
-        private readonly ITileBuilder _reader;
-        private readonly ITileBuilder _creator;
+        private readonly IBuildingsBuilder _buildingsReader, _buildingsCreator;
+        private readonly ITreeBuilder _treeReader, _treeCreator;
+        private readonly IWaterAreasBuilder _waterAreasReader, _waterAreasCreator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
-        public TileGeometryService(ITileBuilder reader, ITileBuilder creator)
+        public TileGeometryService(IBuildingsBuilder buildingsReader, IBuildingsBuilder buildingsCreator,
+            ITreeBuilder treeReader, ITreeBuilder treeCreator,
+            IWaterAreasBuilder waterAreasReader, IWaterAreasBuilder waterAreasCreator)
         {
-            _reader = reader;
-            _creator = creator;
+            _buildingsReader = buildingsReader;
+            _buildingsCreator = buildingsCreator;
+
+            _treeReader = treeReader;
+            _treeCreator = treeCreator;
+
+            _waterAreasReader = waterAreasReader;
+            _waterAreasCreator = waterAreasCreator;
         }
 
         public void AddTile(Tile tile)
@@ -33,60 +42,80 @@ namespace Kuoste.LidarWorld.Tile
                 if (_tileQueue.TryPeek(out Tile tile))
                 {
                     // Buildings require surface heights to be available first
-                    bool bIsDemDsmBuilt = false;
-
-                    if (true == _creator.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmCreated))
-                    {
-                        bIsDemDsmBuilt = isDemDsmCreated;
-                    }
-                    else if (true == _reader.DemDsmDone.TryGetValue(tile.Name, out bool isDemDsmRead))
-                    {
-                        bIsDemDsmBuilt |= isDemDsmRead;
-                    }
+                    bool bIsDemDsmBuilt = Interlocked.Read(ref tile.CompletedCountDemDsm) == 1;
 
                     if (true == bIsDemDsmBuilt && _tileQueue.TryDequeue(out tile))
                     {
-                        Stopwatch sw = Stopwatch.StartNew();
+                        Stopwatch swCreate = new();
+                        Stopwatch swRead = new();
 
-                        string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameBuildings);
 
+                        string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
                         {
                             // Create from shapefiles and DSM
-                            _creator.BuildBuildings(tile);
+                            swCreate.Start();
+                            tile.Buildings = _buildingsCreator.Build(tile);
+                            swCreate.Stop();
+                        }
+                        else
+                        {
+                            // Read from file
+                            swRead.Start();
+                            tile.Buildings = _buildingsReader.Build(tile);
+                            swRead.Stop();
                         }
 
-                        // Read from file
-                        _reader.BuildBuildings(tile);
+                        Interlocked.Increment(ref tile.CompletedCountOther);
 
-                        sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameTrees);
-
+                        sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
                         {
-                            // Create from terrain
-                            _creator.BuildTrees(tile);
+                            // Create from DSM
+                            swCreate.Start();
+                            tile.Trees = _treeCreator.Build(tile);
+                            swCreate.Stop();
+                        }
+                        else
+                        {
+                            // Read from file
+                            swRead.Start();
+                            tile.Trees = _treeReader.Build(tile);
+                            swRead.Stop();
                         }
 
-                        // Read from file
-                        _reader.BuildTrees(tile);
+                        Interlocked.Increment(ref tile.CompletedCountOther);
 
-                        sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameWaterAreas);
-
+                        sFullFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
                         {
-                            // Create from terrain
-                            _creator.BuildWaterAreas(tile);
+                            // Create from shapefiles
+                            swCreate.Start();
+                            tile.WaterAreas = _waterAreasCreator.Build(tile);
+                            swCreate.Stop();
+                        }
+                        else
+                        {
+                            // Read from file
+                            swRead.Start();
+                            tile.WaterAreas = _waterAreasReader.Build(tile);
+                            swRead.Stop();
                         }
 
-                        // Read from file
-                        _reader.BuildWaterAreas(tile);
+                        //tile.Clear();
 
-                        sw.Stop();
-                        Debug.Log($"Tile {tile.Name} geometries created in {sw.ElapsedMilliseconds} ms.");
+                        Interlocked.Increment(ref tile.CompletedCountOther);
+
+                        Debug.Log($"Tile {tile.Name} geometries created in {swCreate.Elapsed.TotalSeconds} s " +
+                            $"and read in {swRead.Elapsed.TotalSeconds} s.");
                     }
-                }
 
-                Thread.Sleep(100);
+                    Thread.Sleep(10);
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                }
             }
         }
     }

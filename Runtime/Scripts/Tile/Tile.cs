@@ -11,11 +11,16 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class Tile
     {
+        public CancellationToken Token;
+
         /// <summary>
         /// Unity handles heightmap values as coefficients between 0.0 and 1.0. 
         /// This value should be the same as Terrain Height so that heights are scaled correctly.
         /// </summary>
-        public float DemMaxHeight;
+        public int DemMaxHeight;
+
+        public int AlphamapResolution;
+        public int HeightMapResolution;
 
         /// <summary>
         /// Tile edge length in meters
@@ -25,28 +30,45 @@ namespace Kuoste.LidarWorld.Tile
         public string Version;
         public string Name;
 
-        //public GameObject Terrain;
-        public VoxelGrid TerrainGrid;
+        public string DirectoryIntermediate;
+        public string DirectoryOriginal;
 
-        public HeightMap Roads;
-        public HeightMap TerrainType;
-
-        public List<CoordinateZ> Trees;
-        public List<Vector3[]> BuildingVertices;
-        public List<int[]> BuildingTriangles;
-        public List<int> BuildingSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
+        public VoxelGrid DemDsm;
+        public IRaster Roads;
+        public IRaster TerrainType;
+        public List<Point> Trees;
+        public List<Building> Buildings;
         public List<Polygon> WaterAreas;
 
-        public int CompletedCount;
+        public struct Building
+        {
+            public Vector3[] Vertices;
+            public int[] Triangles;
+            public int iSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
+        }
+
+        public long CompletedCountDemDsm;
+        public long CompletedCountOther;
 
         // Everything is done when all 6 content types i.e. terraingrid, roads, terrainfeatures, buildings, trees, water areas are built
-        public bool IsCompleted => Interlocked.Add(ref CompletedCount, 0) >= 6;
+        public bool IsCompleted => Interlocked.Read(ref CompletedCountDemDsm) > 0 && Interlocked.Read(ref CompletedCountOther) >= 5;
 
-        public string FilenameGrid => Name + "_v" + Version + ".grid";
-        public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
-        public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
-        public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".geojson";
-        public string FilenameBuildings => Name + "_buildings_v" + Version + ".geojson";
-        public string FilenameTrees => Name + "_trees_v" + Version + ".geojson";
+
+        //public string FilenameGrid => Name + "_v" + Version + ".grid";
+        //public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
+        //public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
+        //public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".geojson";
+        //public string FilenameBuildings => Name + "_buildings_v" + Version + ".geojson";
+        //public string FilenameTrees => Name + "_trees_v" + Version + ".geojson";
+
+        public void Clear()
+        {
+            Buildings.Clear();
+            Trees.Clear();
+            WaterAreas.Clear();
+            DemDsm = null;
+            Roads = null;
+            TerrainType = null;
+        }
     }
 }

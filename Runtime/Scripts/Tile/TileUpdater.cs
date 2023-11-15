@@ -49,11 +49,11 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = 0; y < terrainData.heightmapResolution; y++)
                 {
-                    _tile.TerrainGrid.Dem[x, y] = (_tile.TerrainGrid.Dem[x, y] + iHeightOffset) / _tile.DemMaxHeight;
+                    _tile.DemDsm.Dem[x, y] = (_tile.DemDsm.Dem[x, y] + iHeightOffset) / _tile.DemMaxHeight;
                 }
             }
 
-            terrainData.SetHeights(0, 0, _tile.TerrainGrid.Dem);
+            terrainData.SetHeights(0, 0, _tile.DemDsm.Dem);
 
             //terrainData.SyncHeightmap();
             //Terrain.activeTerrain.Flush();
@@ -73,22 +73,23 @@ namespace Kuoste.LidarWorld.Tile
             Debug.Log($"Tile {_tile.Name} drawn in {swTotal.Elapsed.TotalSeconds} s");
 
             // Remove the tile updater component to save memory
+            _tile.Clear();
             Destroy(this);
         }
 
         private void AddBuildings()
         {
-            for (int i = 0; i < _tile.BuildingVertices.Count; i++)
+            foreach (Tile.Building b in _tile.Buildings)
             {
                 Mesh mesh = new()
                 {
-                    vertices = _tile.BuildingVertices[i],
-                    triangles = _tile.BuildingTriangles[i],
+                    vertices = b.Vertices,
+                    triangles = b.Triangles,
                     subMeshCount = 2
                 };
 
-                mesh.SetSubMesh(0, new SubMeshDescriptor(0, _tile.BuildingSubmeshSeparator[i]));
-                mesh.SetSubMesh(1, new SubMeshDescriptor(_tile.BuildingSubmeshSeparator[i], _tile.BuildingTriangles[i].Length - _tile.BuildingSubmeshSeparator[i]));
+                mesh.SetSubMesh(0, new SubMeshDescriptor(0, b.iSubmeshSeparator));
+                mesh.SetSubMesh(1, new SubMeshDescriptor(b.iSubmeshSeparator, b.Triangles.Length - b.iSubmeshSeparator));
 
                 GameObject go = new("Building");
                 go.AddComponent<MeshFilter>().mesh = mesh;
@@ -117,19 +118,19 @@ namespace Kuoste.LidarWorld.Tile
                     int iLayerToAlter = -1;
                     bool bExpand = false;
 
-                    if (_tile.Roads.Raster[x][y] > 0)
+                    if (_tile.Roads.GetValue(x, y) > 0)
                     {
                         iLayerToAlter = 6;
                         bExpand = true;
                     }
-                    else if (_tile.TerrainType.Raster[x][y] > 0)
+                    else if (_tile.TerrainType.GetValue(x, y) > 0)
                     {
-                        byte bTerrainType = _tile.TerrainType.Raster[x][y];
+                        byte bTerrainType = (byte)_tile.TerrainType.GetValue(x, y);
 
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
                             // Reduce terrain height inside water areas
-                            _tile.TerrainGrid.Dem[x, y] -= 1.5f;
+                            _tile.DemDsm.Dem[x, y] -= 1.5f;
 
                             iLayerToAlter = 4;
                         }

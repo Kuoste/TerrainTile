@@ -11,12 +11,11 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileRoadService : ITileBuilderService
     {
-        private readonly ITileBuilder _reader;
-        private readonly ITileBuilder _creator;
+        private readonly IRoadRasterBuilder _reader, _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
-        public TileRoadService(ITileBuilder reader, ITileBuilder creator)
+        public TileRoadService(IRoadRasterBuilder reader, IRoadRasterBuilder creator)
         {
             _reader = reader;
             _creator = creator;
@@ -35,24 +34,30 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     //Stopwatch sw = Stopwatch.StartNew();
 
-                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameRoads);
+                    string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IRoadRasterBuilder.Filename(tile.Name, tile.Version));
 
                     if (File.Exists(sFullFilename))
                     {
                         // Load raster from filesystem
-                        _reader.BuildRoadRaster(tile);
+                        tile.Roads = _reader.Build(tile);
                     }
                     else
                     {
                         // Create raster from shapefiles
-                        _creator.BuildRoadRaster(tile);
+                        tile.Roads = _creator.Build(tile);
                     }
+
+                    Interlocked.Increment(ref tile.CompletedCountOther);
 
                     //sw.Stop();
                     //Debug.Log($"Tile {tile.Name} roads built in {sw.ElapsedMilliseconds} ms.");
-                }
 
-                Thread.Sleep(1000);
+                    Thread.Sleep(10);
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                }
             }
         }
     }

@@ -13,12 +13,12 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class TileDsmPointCloudService : ITileBuilderService
     {
-        private readonly ITileBuilder _reader;
-        private readonly ITileBuilder _creator;
+        private readonly IDemDsmBuilder _reader;
+        private readonly IDemDsmBuilder _creator;
 
         private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
-        public TileDsmPointCloudService(ITileBuilder reader, ITileBuilder creator)
+        public TileDsmPointCloudService(IDemDsmBuilder reader, IDemDsmBuilder creator)
         {
             _reader = reader;
             _creator = creator;
@@ -37,24 +37,31 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     Stopwatch sw = Stopwatch.StartNew();
 
-                    string sFullFilename = Path.Combine(_reader.DirectoryIntermediate, tile.FilenameGrid);
+                    string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Version));
 
                     if (File.Exists(sFullFilename))
                     {
                         // Load grid from filesystem
-                        _reader.BuildDemAndDsmPointCloud(tile);
+                        tile.DemDsm = _reader.Build(tile);
                     }
                     else
                     {
                         // Create grid from las files
-                        _creator.BuildDemAndDsmPointCloud(tile);
+                        tile.DemDsm = _creator.Build(tile);
+                        //_creator.Build(tile);
                     }
 
-                    sw.Stop();
-                    Debug.Log($"Tile {tile.Name} built in {sw.ElapsedMilliseconds} ms.");
-                }
+                    Interlocked.Increment(ref tile.CompletedCountDemDsm);
 
-                Thread.Sleep(1000);
+                    sw.Stop();
+                    Debug.Log($"Tile {tile.Name} DEM and voxelgrid built in {sw.Elapsed.TotalSeconds} s.");
+
+                    Thread.Sleep(10);
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                }
             }
         }
 
