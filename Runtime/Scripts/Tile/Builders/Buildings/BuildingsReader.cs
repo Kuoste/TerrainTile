@@ -32,8 +32,8 @@ namespace Kuoste.LidarWorld.Tile
                 int iStartingTriangleIndexForWalls = 0;
 
                 float fBuildingHeight = 0.0f;
-                Coordinate cMin = new(double.MaxValue, double.MaxValue);
-                Coordinate cMax = new(double.MinValue, double.MinValue);
+                //Coordinate cMin = new(double.MaxValue, double.MaxValue);
+                //Coordinate cMax = new(double.MinValue, double.MinValue);
 
                 string[] sPolygons = sBuilding.Split("Polygon");
 
@@ -73,10 +73,10 @@ namespace Kuoste.LidarWorld.Tile
                         {
                             Coordinate c1 = coordinates[c];
 
-                            cMin.X = Math.Min(cMin.X, c1.X);
-                            cMin.Y = Math.Min(cMin.Y, c1.Y);
-                            cMax.X = Math.Max(cMax.X, c1.X);
-                            cMax.Y = Math.Max(cMax.Y, c1.Y);
+                            //cMin.X = Math.Min(cMin.X, c1.X);
+                            //cMin.Y = Math.Min(cMin.Y, c1.Y);
+                            //cMax.X = Math.Max(cMax.X, c1.X);
+                            //cMax.Y = Math.Max(cMax.Y, c1.Y);
 
                             if (c > 0)
                             {
@@ -134,7 +134,7 @@ namespace Kuoste.LidarWorld.Tile
                         Vertices = buildingVertices.ToArray(),
                         Triangles = buildingTriangles.ToArray(),
                         iSubmeshSeparator = iStartingTriangleIndexForWalls,
-                        Bounds = new Envelope(cMin, cMax)
+                        //Bounds = new Envelope(cMin, cMax)
                     });
                 }
             }

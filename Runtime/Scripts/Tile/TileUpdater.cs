@@ -109,7 +109,7 @@ namespace Kuoste.LidarWorld.Tile
 
         private void SetAlphaMaps(TerrainData terrainData)
         {
-            if (null == _tile.TerrainType || null == _tile.Roads)
+            if (null == _tile.TerrainType || null == _tile.RoadsBuildings)
             {
                 return;
             }
@@ -123,7 +123,7 @@ namespace Kuoste.LidarWorld.Tile
                     int iLayerToAlter = -1;
                     bool bExpand = false;
 
-                    if (_tile.Roads.GetValue(x, y) > 0)
+                    if (_tile.RoadsBuildings.GetValue(x, y) > 0)
                     {
                         iLayerToAlter = 6;
                         bExpand = true;
@@ -135,7 +135,7 @@ namespace Kuoste.LidarWorld.Tile
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
                             // Reduce terrain height inside water areas
-                            _tile.DemDsm.Dem[x, y] -= 1.5f;
+                            _tile.DemDsm.Dem[x, y] -= 3f;
 
                             iLayerToAlter = 4;
                         }

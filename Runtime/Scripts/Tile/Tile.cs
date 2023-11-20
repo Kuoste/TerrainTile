@@ -34,7 +34,7 @@ namespace Kuoste.LidarWorld.Tile
         public string DirectoryOriginal;
 
         public VoxelGrid DemDsm;
-        public IRaster Roads;
+        public IRaster RoadsBuildings;
         public IRaster TerrainType;
         public List<Point> Trees = new();
         public List<Building> Buildings = new();
@@ -45,7 +45,6 @@ namespace Kuoste.LidarWorld.Tile
             public Vector3[] Vertices;
             public int[] Triangles;
             public int iSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
-            public Envelope Bounds; // Bounding box of the building
         }
 
         public long CompletedCountDemDsm;
@@ -69,7 +68,7 @@ namespace Kuoste.LidarWorld.Tile
             Trees.Clear();
             WaterAreas.Clear();
             DemDsm = null;
-            Roads = null;
+            RoadsBuildings = null;
             TerrainType = null;
         }
     }

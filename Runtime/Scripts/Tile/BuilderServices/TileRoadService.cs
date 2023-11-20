@@ -39,12 +39,12 @@ namespace Kuoste.LidarWorld.Tile
                     if (File.Exists(sFullFilename))
                     {
                         // Load raster from filesystem
-                        tile.Roads = _reader.Build(tile);
+                        tile.RoadsBuildings = _reader.Build(tile);
                     }
                     else
                     {
                         // Create raster from shapefiles
-                        tile.Roads = _creator.Build(tile);
+                        tile.RoadsBuildings = _creator.Build(tile);
                     }
 
                     Interlocked.Increment(ref tile.CompletedCountOther);

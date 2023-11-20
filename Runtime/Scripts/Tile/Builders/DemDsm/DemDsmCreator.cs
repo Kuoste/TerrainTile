@@ -93,15 +93,11 @@ namespace Kuoste.LidarWorld.Tile
                 if (tile.Token.IsCancellationRequested)
                     return new();
 
-                double x = p.x;
-                double y = p.y;
-                double z = p.z;
-
                 // Get submesh indices
-                x -= reader.MinX;
-                y -= reader.MinY;
-                int ix = (int)x / Tile.EdgeLength;
-                int iy = (int)y / Tile.EdgeLength;
+                int x = (int)(p.x - reader.MinX + 0.5);
+                int y = (int)(p.y - reader.MinY + 0.5);
+                int ix = x / Tile.EdgeLength;
+                int iy = y / Tile.EdgeLength;
                 int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
 
                 // Classifications from
@@ -150,8 +146,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageX < dOverlapPercentageLowBound)
                         {
-                            ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
-                            iy = (int)y / Tile.EdgeLength;
+                            ix = (x - iOverlapInMeters) / Tile.EdgeLength;
+                            iy = y / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -161,8 +157,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageY < dOverlapPercentageLowBound)
                             {
-                                //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
+                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = (y - iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -170,8 +166,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / Tile.EdgeLength;
-                                //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = x / Tile.EdgeLength;
+                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -182,8 +178,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageY > dOverlapPercentageHighBound)
                             {
-                                //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
+                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = (y + iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -191,8 +187,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / Tile.EdgeLength;
-                                //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = x / Tile.EdgeLength;
+                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -206,8 +202,8 @@ namespace Kuoste.LidarWorld.Tile
                         if (dPercentageX > dOverlapPercentageHighBound)
                         {
 
-                            ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
-                            iy = (int)y / Tile.EdgeLength;
+                            ix = (x + iOverlapInMeters) / Tile.EdgeLength;
+                            iy = y / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -217,8 +213,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageY < dOverlapPercentageLowBound)
                             {
-                                //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
+                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = (y - iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -226,8 +222,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / Tile.EdgeLength;
-                                //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = x / Tile.EdgeLength;
+                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -238,8 +234,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageY > dOverlapPercentageHighBound)
                             {
-                                //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
+                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = (y + iOverlapInMeters) / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -247,8 +243,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                ix = (int)x / Tile.EdgeLength;
-                                //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = x / Tile.EdgeLength;
+                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -261,8 +257,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageY < dOverlapPercentageLowBound)
                         {
-                            ix = (int)x / Tile.EdgeLength;
-                            iy = (int)(y - iOverlapInMeters) / Tile.EdgeLength;
+                            ix = x / Tile.EdgeLength;
+                            iy = (y - iOverlapInMeters) / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -272,8 +268,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX < dOverlapPercentageLowBound)
                             {
-                                ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = (x - iOverlapInMeters) / Tile.EdgeLength;
+                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -281,8 +277,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / Tile.EdgeLength;
+                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -293,8 +289,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX > dOverlapPercentageHighBound)
                             {
-                                ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (int)(y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = (x + iOverlapInMeters) / Tile.EdgeLength;
+                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -302,8 +298,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / Tile.EdgeLength;
+                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -315,8 +311,8 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (dPercentageY > dOverlapPercentageHighBound)
                         {
-                            ix = (int)x / Tile.EdgeLength;
-                            iy = (int)(y + iOverlapInMeters) / Tile.EdgeLength;
+                            ix = x / Tile.EdgeLength;
+                            iy = (y + iOverlapInMeters) / Tile.EdgeLength;
 
                             if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                             {
@@ -326,8 +322,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX < dOverlapPercentageLowBound)
                             {
-                                ix = (int)(x - iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = (x - iOverlapInMeters) / Tile.EdgeLength;
+                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -335,8 +331,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                //ix = (int)(x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / Tile.EdgeLength;
+                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -347,8 +343,8 @@ namespace Kuoste.LidarWorld.Tile
 
                             if (dPercentageX > dOverlapPercentageHighBound)
                             {
-                                ix = (int)(x + iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (int)(y + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                ix = (x + iOverlapInMeters) / Tile.EdgeLength;
+                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {
@@ -356,8 +352,8 @@ namespace Kuoste.LidarWorld.Tile
                                     triangulations[iOverlapSubmeshIndex].AddPoint(p);
                                 }
 
-                                //ix = (int)(x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (int)y / Tile.EdgeLength;
+                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
+                                iy = y / Tile.EdgeLength;
 
                                 if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
                                 {

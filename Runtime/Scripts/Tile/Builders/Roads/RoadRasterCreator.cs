@@ -3,13 +3,9 @@ using LasUtility.Common;
 using LasUtility.Nls;
 using LasUtility.ShapefileRasteriser;
 using NetTopologySuite.Geometries;
-using System.Collections;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
-using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
@@ -57,8 +53,11 @@ namespace Kuoste.LidarWorld.Tile
             int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * tile.AlphamapResolution;
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
+            rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.BuildingPolygonClassesToRasterValues);
 
             string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
+            rasteriser.RasteriseShapefile(sFullFilename);
+            sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             rasteriser.RasteriseShapefile(sFullFilename);
 
             for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
