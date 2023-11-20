@@ -36,22 +36,24 @@ namespace Kuoste.LidarWorld.Tile
         public VoxelGrid DemDsm;
         public IRaster Roads;
         public IRaster TerrainType;
-        public List<Point> Trees;
-        public List<Building> Buildings;
-        public List<Polygon> WaterAreas;
+        public List<Point> Trees = new();
+        public List<Building> Buildings = new();
+        public List<Polygon> WaterAreas = new();
 
         public struct Building
         {
             public Vector3[] Vertices;
             public int[] Triangles;
             public int iSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
+            public Envelope Bounds; // Bounding box of the building
         }
 
         public long CompletedCountDemDsm;
         public long CompletedCountOther;
+        public long CompletedRequired;
 
-        // Everything is done when all 6 content types i.e. terraingrid, roads, terrainfeatures, buildings, trees, water areas are built
-        public bool IsCompleted => Interlocked.Read(ref CompletedCountDemDsm) > 0 && Interlocked.Read(ref CompletedCountOther) >= 5;
+        // Everything is done when all 4 content types i.e. terraingrid, roads, terrainfeatures, geometries are built
+        public bool IsCompleted => Interlocked.Read(ref CompletedCountDemDsm) + Interlocked.Read(ref CompletedCountOther) >= CompletedRequired;
 
 
         //public string FilenameGrid => Name + "_v" + Version + ".grid";

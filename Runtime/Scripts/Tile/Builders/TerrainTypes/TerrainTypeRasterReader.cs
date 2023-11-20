@@ -11,10 +11,10 @@ public class TerrainTypeReader : ITerrainTypeBuilder
     public IRaster Build(Tile tile)
     {
         if (tile.Token.IsCancellationRequested)
-            return new HeightMap();
+            return new ByteRaster();
 
         string sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITerrainTypeBuilder.Filename(tile.Name, tile.Version));
 
-        return HeightMap.CreateFromAscii(sFullFilename);
+        return ByteRaster.CreateFromAscii(sFullFilename);
     }
 }

@@ -3,12 +3,16 @@ using LasUtility.Common;
 using LasUtility.Nls;
 using LasUtility.ShapefileRasteriser;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.IO.Esri.Shapefiles.Readers;
+using NetTopologySuite.IO.Esri;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using UnityEngine;
+using System.Diagnostics;
+using Debug = UnityEngine.Debug;
 
 public class TerrainTypeCreator : ITerrainTypeBuilder
 {
@@ -20,7 +24,8 @@ public class TerrainTypeCreator : ITerrainTypeBuilder
     public IRaster Build(Tile tile)
     {
         if (tile.Token.IsCancellationRequested)
-            return new HeightMap();
+            return new ByteRaster();
+
 
         // Get topographic db tile name
         TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -34,7 +39,7 @@ public class TerrainTypeCreator : ITerrainTypeBuilder
             {
                 // Shapefile is already processed, so just update the tile.
                 Debug.Log($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
-                return HeightMap.CreateFromAscii(Path.Combine(tile.DirectoryIntermediate, ITerrainTypeBuilder.Filename(tile.Name, tile.Version)));
+                return ByteRaster.CreateFromAscii(Path.Combine(tile.DirectoryIntermediate, ITerrainTypeBuilder.Filename(tile.Name, tile.Version)));
             }
             else
             {
@@ -45,11 +50,18 @@ public class TerrainTypeCreator : ITerrainTypeBuilder
 
         _12kmTerrainTypesDone.TryAdd(s12km12kmMapTileName, false);
 
-        Rasteriser rasteriser = new();
+        Stopwatch sw = Stopwatch.StartNew();
+
+        string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+        RasteriserEvenOdd rasteriser = new();
         rasteriser.SetCancellationToken(tile.Token);
 
+        Envelope rasterBounds = new(bounds12km);
+        using ShapefileReader reader = Shapefile.OpenRead(sFullFilename);
+        rasterBounds.ExpandToInclude(reader.BoundingBox);
+
         int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * tile.AlphamapResolution;
-        rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, bounds12km);
+        rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, rasterBounds);
         rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterPolygonClassesToRasterValues);
         rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.WaterLineClassesToRasterValues);
         rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.SwampPolygonClassesToRasterValues);
@@ -58,15 +70,14 @@ public class TerrainTypeCreator : ITerrainTypeBuilder
         rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.FieldPolygonClassesToRasterValues);
         rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RockLineClassesToRasterValues);
 
-        string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
-        rasteriser.AddShapefile(sFullFilename);
+        rasteriser.RasteriseShapefile(sFullFilename);
 
         for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
         {
             for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
             {
                 if (tile.Token.IsCancellationRequested)
-                    return new HeightMap();
+                    return new ByteRaster();
 
                 string sTileName = TileNamer.Encode(x, y, Tile.EdgeLength);
 
@@ -76,7 +87,11 @@ public class TerrainTypeCreator : ITerrainTypeBuilder
             }
         }
 
+        //rasteriser.WriteAsAscii(Path.Combine(tile.DirectoryIntermediate, s12km12kmMapTileName + "_full.asc"));
+
         _12kmTerrainTypesDone.TryUpdate(s12km12kmMapTileName, true, false);
+
+        Debug.Log($"Rasterising terrain types for 12x12 km2 tile {s12km12kmMapTileName} took {sw.Elapsed.TotalSeconds} s.");
 
         return rasteriser.Crop((int)bounds.MinX, (int)bounds.MinY, 
             (int)bounds.MinX + Tile.EdgeLength, (int)bounds.MinY + Tile.EdgeLength);

@@ -17,10 +17,8 @@ namespace Kuoste.LidarWorld.Tile
     {
         public List<Tile.Building> Build(Tile tile)
         {
-            List<Tile.Building> buildings = new();
-
             if (tile.Token.IsCancellationRequested)
-                return buildings;
+                return new();
 
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -37,7 +35,7 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     streamWriter.Close();
                     File.Delete(Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version)));
-                    return buildings;
+                    return new();
                 }
 
                 // Make sure f is inside bounds.
@@ -109,7 +107,7 @@ namespace Kuoste.LidarWorld.Tile
                         (int)(buildingBounds.MaxX - buildingBounds.MinX),
                         (int)(buildingBounds.MaxY - buildingBounds.MinY),
                         0, 0, buildingBounds.MaxX - buildingBounds.MinX,
-                        buildingBounds.MaxY - buildingBounds.MinY);
+                        buildingBounds.MaxY - buildingBounds.MinY, false);
 
                     // Make faster by skipping some coordinates
                     int iSkip = 2;
@@ -225,6 +223,7 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             streamWriter.Close();
+
             BuildingsReader reader = new();
             return reader.Build(tile);
         }

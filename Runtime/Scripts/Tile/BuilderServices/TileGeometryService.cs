@@ -66,8 +66,6 @@ namespace Kuoste.LidarWorld.Tile
                             swRead.Stop();
                         }
 
-                        Interlocked.Increment(ref tile.CompletedCountOther);
-
                         sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
                         {
@@ -84,8 +82,6 @@ namespace Kuoste.LidarWorld.Tile
                             swRead.Stop();
                         }
 
-                        Interlocked.Increment(ref tile.CompletedCountOther);
-
                         sFullFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
                         {
@@ -101,8 +97,6 @@ namespace Kuoste.LidarWorld.Tile
                             tile.WaterAreas = _waterAreasReader.Build(tile);
                             swRead.Stop();
                         }
-
-                        //tile.Clear();
 
                         Interlocked.Increment(ref tile.CompletedCountOther);
 

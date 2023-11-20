@@ -33,6 +33,22 @@ public class SimpleTreeCreator : ITreeBuilder
                     return trees;
                 }
 
+                bool bIsPointInBuilding = false;
+                Coordinate c = tile.DemDsm.Bounds.CellBottomLeftToProj(iRow, jCol);
+                foreach (Tile.Building b in tile.Buildings)
+                {
+                    if (b.Bounds.Contains(c))
+                    {
+                        bIsPointInBuilding = true;
+                        break;
+                    }   
+                }
+
+                if (bIsPointInBuilding)
+                {
+                    continue;
+                }
+
                 const int iRadius = 2;
                 int iHighVegetationCount = 0;
 

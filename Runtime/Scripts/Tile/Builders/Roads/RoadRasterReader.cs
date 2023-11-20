@@ -9,11 +9,11 @@ namespace Kuoste.LidarWorld.Tile
         public IRaster Build(Tile tile)
         {
             if (tile.Token.IsCancellationRequested)
-                return new HeightMap();
+                return new ByteRaster();
 
             string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IRoadRasterBuilder.Filename(tile.Name, tile.Version));
 
-            return HeightMap.CreateFromAscii(sFullFilename);
+            return ByteRaster.CreateFromAscii(sFullFilename);
         }
     }
 }

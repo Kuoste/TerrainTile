@@ -29,9 +29,11 @@ namespace Kuoste.LidarWorld.Tile
 
                 List<Vector3> buildingVertices = new();
                 List<int> buildingTriangles = new();
-                int iStartingTrinagleIndexForWalls = 0;
+                int iStartingTriangleIndexForWalls = 0;
 
                 float fBuildingHeight = 0.0f;
+                Coordinate cMin = new(double.MaxValue, double.MaxValue);
+                Coordinate cMax = new(double.MinValue, double.MinValue);
 
                 string[] sPolygons = sBuilding.Split("Polygon");
 
@@ -64,27 +66,36 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         // Last polygon is walls
 
-                        iStartingTrinagleIndexForWalls = buildingTriangles.Count;
+                        iStartingTriangleIndexForWalls = buildingTriangles.Count;
 
                         // Add wall vertices
-                        for (int c = 1; c < coordinates.Count; c++)
+                        for (int c = 0; c < coordinates.Count; c++)
                         {
-                            Coordinate c0 = coordinates[c - 1];
                             Coordinate c1 = coordinates[c];
 
-                            // Create a quad between the two points
-                            int iVertexStart = buildingVertices.Count;
-                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)c0.Z, (float)(c0.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)c1.Z, (float)(c1.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight, (float)(c1.Y - bounds.MinY)));
-                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight, (float)(c0.Y - bounds.MinY)));
+                            cMin.X = Math.Min(cMin.X, c1.X);
+                            cMin.Y = Math.Min(cMin.Y, c1.Y);
+                            cMax.X = Math.Max(cMax.X, c1.X);
+                            cMax.Y = Math.Max(cMax.Y, c1.Y);
 
-                            buildingTriangles.Add(iVertexStart);
-                            buildingTriangles.Add(iVertexStart + 1);
-                            buildingTriangles.Add(iVertexStart + 2);
-                            buildingTriangles.Add(iVertexStart);
-                            buildingTriangles.Add(iVertexStart + 2);
-                            buildingTriangles.Add(iVertexStart + 3);
+                            if (c > 0)
+                            {
+                                Coordinate c0 = coordinates[c - 1];
+
+                                // Create a quad between the two points
+                                int iVertexStart = buildingVertices.Count;
+                                buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)c0.Z, (float)(c0.Y - bounds.MinY)));
+                                buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)c1.Z, (float)(c1.Y - bounds.MinY)));
+                                buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight, (float)(c1.Y - bounds.MinY)));
+                                buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight, (float)(c0.Y - bounds.MinY)));
+
+                                buildingTriangles.Add(iVertexStart);
+                                buildingTriangles.Add(iVertexStart + 1);
+                                buildingTriangles.Add(iVertexStart + 2);
+                                buildingTriangles.Add(iVertexStart);
+                                buildingTriangles.Add(iVertexStart + 2);
+                                buildingTriangles.Add(iVertexStart + 3);
+                            }
                         }
                     }
                     else
@@ -116,13 +127,14 @@ namespace Kuoste.LidarWorld.Tile
                     }
                 }
 
-                if (iStartingTrinagleIndexForWalls > 0)
+                if (iStartingTriangleIndexForWalls > 0)
                 {
                     buildings.Add(new Tile.Building()
                     {
                         Vertices = buildingVertices.ToArray(),
                         Triangles = buildingTriangles.ToArray(),
-                        iSubmeshSeparator = iStartingTrinagleIndexForWalls
+                        iSubmeshSeparator = iStartingTriangleIndexForWalls,
+                        Bounds = new Envelope(cMin, cMax)
                     });
                 }
             }

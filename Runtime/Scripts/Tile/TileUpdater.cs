@@ -109,6 +109,11 @@ namespace Kuoste.LidarWorld.Tile
 
         private void SetAlphaMaps(TerrainData terrainData)
         {
+            if (null == _tile.TerrainType || null == _tile.Roads)
+            {
+                return;
+            }
+
             float[,,] alphamaps = terrainData.GetAlphamaps(0, 0, terrainData.alphamapWidth, terrainData.alphamapHeight);
 
             for (int x = 0; x < terrainData.alphamapWidth; x++)

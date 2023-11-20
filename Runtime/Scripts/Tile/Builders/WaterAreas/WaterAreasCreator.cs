@@ -51,12 +51,12 @@ public class IWaterAreasCreator : IWaterAreasBuilder
                         Polygon p = (Polygon)intersection.GetGeometryN(g);
 
                         Point pointForLakeSurface = p.InteriorPoint;
-                        float fHeight = (float)Math.Round(tile.DemDsm.GetValue(new Coordinate(pointForLakeSurface.X, pointForLakeSurface.Y)), 2);
+                        double dHeight = Math.Round(tile.DemDsm.GetValue(new Coordinate(pointForLakeSurface.X, pointForLakeSurface.Y)), 2);
 
                         List<CoordinateZ> coords = new();
                         foreach (Coordinate c in p.ExteriorRing.Coordinates)
                         {
-                            coords.Add(new CoordinateZ(Math.Round(c.X, 2), Math.Round(c.Y, 2), fHeight));
+                            coords.Add(new CoordinateZ(Math.Round(c.X, 2), Math.Round(c.Y, 2), dHeight));
                         }
 
                         streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");

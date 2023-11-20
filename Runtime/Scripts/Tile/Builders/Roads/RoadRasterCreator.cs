@@ -6,9 +6,11 @@ using NetTopologySuite.Geometries;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -22,7 +24,7 @@ namespace Kuoste.LidarWorld.Tile
         public IRaster Build(Tile tile)
         {
             if (tile.Token.IsCancellationRequested)
-                return new HeightMap();
+                return new ByteRaster();
 
             // Get topographic db tile name
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -36,7 +38,7 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     // Shapefile is already processed, so just update the tile.
                     Debug.Log($"RoadRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
-                    return HeightMap.CreateFromAscii(Path.Combine(tile.DirectoryIntermediate, IRoadRasterBuilder.Filename(tile.Name, tile.Version)));
+                    return ByteRaster.CreateFromAscii(Path.Combine(tile.DirectoryIntermediate, IRoadRasterBuilder.Filename(tile.Name, tile.Version)));
                 }
                 else
                 {
@@ -47,7 +49,9 @@ namespace Kuoste.LidarWorld.Tile
 
             _12kmRoadsDone.TryAdd(s12km12kmMapTileName, false);
 
-            Rasteriser rasteriser = new();
+            Stopwatch sw = Stopwatch.StartNew();
+
+            RasteriserEvenOdd rasteriser = new();
             rasteriser.SetCancellationToken(tile.Token);
 
             int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * tile.AlphamapResolution;
@@ -55,14 +59,14 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.AddRasterizedClassesWithRasterValues(TopographicDb.RoadLineClassesToRasterValues);
 
             string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForRoads + s12km12kmMapTileName + TopographicDb.sPostfixForLine + ".shp");
-            rasteriser.AddShapefile(sFullFilename);
+            rasteriser.RasteriseShapefile(sFullFilename);
 
             for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
                     if (tile.Token.IsCancellationRequested)
-                        return new HeightMap();
+                        return new ByteRaster();
 
                     string sTileName = TileNamer.Encode(x, y, Tile.EdgeLength);
 
@@ -73,6 +77,8 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             _12kmRoadsDone.TryUpdate(s12km12kmMapTileName, true, false);
+
+            Debug.Log($"Rasterising terrain types for 12x12 km2 tile {s12km12kmMapTileName} took {sw.Elapsed.TotalSeconds} s.");
 
             return rasteriser.Crop((int)bounds.MinX, (int)bounds.MinY, (int)bounds.MinX + Tile.EdgeLength, (int)bounds.MinY + Tile.EdgeLength);
         }

@@ -85,7 +85,7 @@ namespace Kuoste.LidarWorld.Tile
 
                 triangulations[i] = new SurfaceTriangulation(_iTotalEdgeLength, _iTotalEdgeLength,
                     extent.MinX - _iOverlap, extent.MinY - _iOverlap,
-                    extent.MaxX + _iOverlap, extent.MaxY + _iOverlap, false);
+                    extent.MaxX + _iOverlap, extent.MaxY + _iOverlap);
             }
 
             while ((p = reader.ReadPoint()) != null)
@@ -115,13 +115,6 @@ namespace Kuoste.LidarWorld.Tile
                     if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
                     {
                         Debug.LogFormat("Coordinates of a point (x={0}, y={1} are outside the area defined in the file {2} header ", x, y, sFilename);
-                        continue;
-                    }
-
-                    // Height sanity check
-                    if (z < 0 || z > short.MaxValue)
-                    {
-                        Debug.Log("Point has invalid height " + z);
                         continue;
                     }
 
