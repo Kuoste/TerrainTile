@@ -94,8 +94,8 @@ namespace Kuoste.LidarWorld.Tile
                     return new();
 
                 // Get submesh indices
-                int x = (int)(p.x - reader.MinX + 0.5);
-                int y = (int)(p.y - reader.MinY + 0.5);
+                int x = (int)(p.x - reader.MinX);
+                int y = (int)(p.y - reader.MinY);
                 int ix = x / Tile.EdgeLength;
                 int iy = y / Tile.EdgeLength;
                 int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
