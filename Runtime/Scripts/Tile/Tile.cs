@@ -34,7 +34,7 @@ namespace Kuoste.LidarWorld.Tile
         public string DirectoryOriginal;
 
         public VoxelGrid DemDsm;
-        public IRaster RoadsBuildings;
+        public IRaster BuildingsRoads;
         public IRaster TerrainType;
         public List<Point> Trees = new();
         public List<Building> Buildings = new();
@@ -47,20 +47,11 @@ namespace Kuoste.LidarWorld.Tile
             public int iSubmeshSeparator; // Each building contains 2 submeshes: walls and roof
         }
 
-        public long CompletedCountDemDsm;
-        public long CompletedCountOther;
-        public long CompletedRequired;
+        public long CompletedCount;
+        public long CompletedRequired => 3;
 
-        // Everything is done when all 4 content types i.e. terraingrid, roads, terrainfeatures, geometries are built
-        public bool IsCompleted => Interlocked.Read(ref CompletedCountDemDsm) + Interlocked.Read(ref CompletedCountOther) >= CompletedRequired;
-
-
-        //public string FilenameGrid => Name + "_v" + Version + ".grid";
-        //public string FilenameRoads => Name + "_roads_v" + Version + ".asp";
-        //public string FilenameTerrainType => Name + "_terraintype_v" + Version + ".asp";
-        //public string FilenameWaterAreas => Name + "_waterareas_v" + Version + ".geojson";
-        //public string FilenameBuildings => Name + "_buildings_v" + Version + ".geojson";
-        //public string FilenameTrees => Name + "_trees_v" + Version + ".geojson";
+        // Everything is done when all 3 content types i.e. DemDsm, rasters, geometries are built
+        public bool IsCompleted => Interlocked.Read(ref CompletedCount) >= CompletedRequired;
 
         public void Clear()
         {
@@ -68,7 +59,7 @@ namespace Kuoste.LidarWorld.Tile
             Trees.Clear();
             WaterAreas.Clear();
             DemDsm = null;
-            RoadsBuildings = null;
+            BuildingsRoads = null;
             TerrainType = null;
         }
     }

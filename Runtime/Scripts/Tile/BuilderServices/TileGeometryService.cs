@@ -41,14 +41,13 @@ namespace Kuoste.LidarWorld.Tile
             {
                 if (_tileQueue.TryPeek(out Tile tile))
                 {
-                    // Buildings require surface heights to be available first
-                    bool bIsDemDsmBuilt = Interlocked.Read(ref tile.CompletedCountDemDsm) == 1;
+                    // Geometries require that other components are ready
+                    bool bAreOthersReady = Interlocked.Read(ref tile.CompletedCount) >= (tile.CompletedRequired - 1);
 
-                    if (true == bIsDemDsmBuilt && _tileQueue.TryDequeue(out tile))
+                    if (true == bAreOthersReady && _tileQueue.TryDequeue(out tile))
                     {
                         Stopwatch swCreate = new();
                         Stopwatch swRead = new();
-
 
                         string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version));
                         if (!File.Exists(sFullFilename))
@@ -98,13 +97,17 @@ namespace Kuoste.LidarWorld.Tile
                             swRead.Stop();
                         }
 
-                        Interlocked.Increment(ref tile.CompletedCountOther);
+                        Interlocked.Increment(ref tile.CompletedCount);
 
                         Debug.Log($"Tile {tile.Name} geometries created in {swCreate.Elapsed.TotalSeconds} s " +
                             $"and read in {swRead.Elapsed.TotalSeconds} s.");
-                    }
 
-                    Thread.Sleep(10);
+                        Thread.Sleep(10);
+                    }
+                    else
+                    {
+                        Thread.Sleep(100);
+                    }
                 }
                 else
                 {

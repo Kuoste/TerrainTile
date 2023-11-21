@@ -109,7 +109,7 @@ namespace Kuoste.LidarWorld.Tile
 
         private void SetAlphaMaps(TerrainData terrainData)
         {
-            if (null == _tile.TerrainType || null == _tile.RoadsBuildings)
+            if (null == _tile.TerrainType || null == _tile.BuildingsRoads)
             {
                 return;
             }
@@ -123,7 +123,7 @@ namespace Kuoste.LidarWorld.Tile
                     int iLayerToAlter = -1;
                     bool bExpand = false;
 
-                    if (_tile.RoadsBuildings.GetValue(x, y) > 0)
+                    if (_tile.BuildingsRoads.GetValue(x, y) > 0)
                     {
                         iLayerToAlter = 6;
                         bExpand = true;

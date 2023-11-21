@@ -5,11 +5,13 @@ using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
-
 
 public class SimpleTreeCreator : ITreeBuilder
 {
+    const int _iSearchRadiusBuildingsRoads = 3;
+    const int _iSearchRadiusHighVegetation = 2;
+    const int _iRequiredHighVegetationCountAroundTree = 5;
+
     public List<Point> Build(Tile tile)
     {
         TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -33,23 +35,9 @@ public class SimpleTreeCreator : ITreeBuilder
                     return trees;
                 }
 
-                //bool bIsPointInBuilding = false;
-                //Coordinate c = tile.DemDsm.Bounds.CellBottomLeftToProj(iRow, jCol);
-                //foreach (Tile.Building b in tile.Buildings)
-                //{
-                //    if (b.Bounds.Contains(c))
-                //    {
-                //        bIsPointInBuilding = true;
-                //        break;
-                //    }   
-                //}
+                if (AreBuildingsRoadsNearby(tile, iRow, jCol, _iSearchRadiusBuildingsRoads))
+                    continue;
 
-                //if (bIsPointInBuilding)
-                //{
-                //    continue;
-                //}
-
-                const int iRadius = 2;
                 int iHighVegetationCount = 0;
 
                 List<BinPoint> centerPoints = tile.DemDsm.GetPoints(iRow, jCol);
@@ -61,9 +49,9 @@ public class SimpleTreeCreator : ITreeBuilder
 
                 float fTreeHeight = float.MinValue;
 
-                for (int ii = iRow - iRadius; ii <= iRow + iRadius; ii++)
+                for (int ii = iRow - _iSearchRadiusHighVegetation; ii <= iRow + _iSearchRadiusHighVegetation; ii++)
                 {
-                    for (int jj = jCol - iRadius; jj <= jCol + iRadius; jj++)
+                    for (int jj = jCol - _iSearchRadiusHighVegetation; jj <= jCol + _iSearchRadiusHighVegetation; jj++)
                     {
                         if (ii < 0 || ii > tile.DemDsm.Bounds.RowCount - 1 ||
                             jj < 0 || jj > tile.DemDsm.Bounds.ColumnCount - 1)
@@ -93,7 +81,7 @@ public class SimpleTreeCreator : ITreeBuilder
 
                 // There has to be enough high vegetation points in the neighborhood
                 // and the tree has to be the highest point.
-                if (iHighVegetationCount < 5 || fTreeHeight > centerPoints[0].Z)
+                if (iHighVegetationCount < _iRequiredHighVegetationCountAroundTree || fTreeHeight > centerPoints[0].Z)
                 {
                     continue;
                 }
@@ -105,8 +93,6 @@ public class SimpleTreeCreator : ITreeBuilder
                 {
                     continue;
                 }
-
-                //fMaxTreeHeight = Math.Max(fMaxTreeHeight, fMaxHeight);
 
                 // Write Point
                 streamWriter.Write("{\"type\":\"Point\",\"coordinates\":");
@@ -124,5 +110,47 @@ public class SimpleTreeCreator : ITreeBuilder
         //sw.Restart();
 
         return trees;
+    }
+
+    private bool AreBuildingsRoadsNearby(Tile tile, int iRow, int jCol, int iRadius)
+    {
+        if (AreBuildingsRoadsOnCell(tile, iRow, jCol))
+            return true;
+
+        if (iRow - iRadius > 0)
+        {
+            if (AreBuildingsRoadsOnCell(tile, iRow - iRadius, jCol))
+                return true;
+        }
+
+        if (iRow + iRadius < tile.DemDsm.Bounds.RowCount)
+        {
+            if (AreBuildingsRoadsOnCell(tile, iRow + iRadius, jCol))
+                return true;
+        }
+
+        if (jCol - iRadius > 0)
+        {
+            if (AreBuildingsRoadsOnCell(tile, iRow, jCol - iRadius))
+                return true;
+        }
+
+        if (jCol + iRadius < tile.DemDsm.Bounds.ColumnCount)
+        {
+            if (AreBuildingsRoadsOnCell(tile, iRow, jCol + iRadius))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool AreBuildingsRoadsOnCell(Tile tile, int iRow, int jCol)
+    {
+        tile.DemDsm.GetGridCoordinates(iRow, jCol, out double x, out double y);
+
+        if (tile.BuildingsRoads.GetValue(new Coordinate(x, y)) > 0)
+            return true;
+
+        return false;
     }
 }

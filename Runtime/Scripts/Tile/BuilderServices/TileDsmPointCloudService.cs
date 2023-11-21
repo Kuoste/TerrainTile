@@ -51,7 +51,7 @@ namespace Kuoste.LidarWorld.Tile
                         //_creator.Build(tile);
                     }
 
-                    Interlocked.Increment(ref tile.CompletedCountDemDsm);
+                    Interlocked.Increment(ref tile.CompletedCount);
 
                     sw.Stop();
                     Debug.Log($"Tile {tile.Name} DEM and voxelgrid built in {sw.Elapsed.TotalSeconds} s.");
