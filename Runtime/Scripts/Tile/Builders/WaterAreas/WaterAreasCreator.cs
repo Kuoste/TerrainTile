@@ -1,4 +1,5 @@
 using Kuoste.LidarWorld.Tile;
+using LasUtility.Common;
 using LasUtility.Nls;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
@@ -7,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Unity.VisualScripting;
+using UnityEngine;
 
 public class IWaterAreasCreator : IWaterAreasBuilder
 {
@@ -50,8 +52,30 @@ public class IWaterAreasCreator : IWaterAreasBuilder
                     {
                         Polygon p = (Polygon)intersection.GetGeometryN(g);
 
-                        Point pointForLakeSurface = p.InteriorPoint;
-                        double dHeight = Math.Round(tile.DemDsm.GetValue(new Coordinate(pointForLakeSurface.X, pointForLakeSurface.Y)), 2);
+                        double dHeight = double.MaxValue;
+
+                        foreach (Coordinate c in p.ExteriorRing.Coordinates)
+                        {
+                            // Geometry.Intersection returns points on the bounds upper borders, but they are not part of the tile area.
+                            if (c.X >= tile.DemDsm.Bounds.MaxX)
+                                c.X -= RasterBounds.dEpsilon;
+
+                            if (c.Y >= tile.DemDsm.Bounds.MaxY)
+                                c.Y -= RasterBounds.dEpsilon;
+
+
+                            // Just pick the lowest point in lake boundary for the surface height
+                            double h = tile.DemDsm.GetValue(c);
+
+                            if (!double.IsNaN(h))
+                                dHeight = Math.Min(dHeight, h);
+                        }
+
+                        if (double.IsNaN(dHeight))
+                        {
+                            Debug.Log($"Tile {tile.Name}: Cannot find surface height for a lake ({p.ExteriorRing.Coordinates.Length} polygon corners).");
+                            continue;
+                        }
 
                         List<CoordinateZ> coords = new();
                         foreach (Coordinate c in p.ExteriorRing.Coordinates)
