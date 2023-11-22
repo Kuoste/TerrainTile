@@ -1,6 +1,8 @@
+using LasUtility.Common;
 using LasUtility.DEM;
 using LasUtility.LAS;
 using LasUtility.Nls;
+using LasUtility.ShapefileRasteriser;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
@@ -14,6 +16,9 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class BuildingsCreator : IBuildingsBuilder
     {
+        const int _iRequiredBuildingHeights = 10;
+        const int _iPercentileForBuildingHeight = 80;
+
         public List<Tile.Building> Build(Tile tile)
         {
             if (tile.Token.IsCancellationRequested)
@@ -28,6 +33,9 @@ namespace Kuoste.LidarWorld.Tile
             string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
 
+            GeometryFactory factory = new();
+            Geometry geometryTileBounds = factory.ToGeometry(bounds);
+
             foreach (Feature f in features)
             {
                 if (tile.Token.IsCancellationRequested)
@@ -37,15 +45,6 @@ namespace Kuoste.LidarWorld.Tile
                     return new();
                 }
 
-                // Make sure f is inside bounds.
-                Envelope featureBounds = f.Geometry.EnvelopeInternal;
-                if (featureBounds.MinX < bounds.MinX || featureBounds.MaxX >= bounds.MaxX ||
-                    featureBounds.MinY < bounds.MinY || featureBounds.MaxY >= bounds.MaxY)
-                {
-                    continue;
-                }
-
-
                 int classification = (int)(long)f.Attributes["LUOKKA"];
 
                 if (false == TopographicDb.BuildingPolygonClassesToRasterValues.ContainsKey(classification))
@@ -53,14 +52,20 @@ namespace Kuoste.LidarWorld.Tile
                     continue;
                 }
 
-                MultiPolygon mp = (MultiPolygon)f.Geometry;
+                Geometry intersection = f.Geometry.Intersection(geometryTileBounds);
 
-                // Go through polygons in the multipolygon
-                for (int j = 0; j < mp.NumGeometries; j++)
+                if (intersection == Polygon.Empty)
                 {
-                    Polygon buildingPolygon = (Polygon)mp.GetGeometryN(j);
+                    // The whole building is outside the tile
+                    continue;
+                }
 
-                    LineString buildingExterior = buildingPolygon.ExteriorRing;
+                // Go through polygons in the intersection
+                for (int j = 0; j < intersection.NumGeometries; j++)
+                {
+                    LineString buildingExterior = ((Polygon)intersection.GetGeometryN(j)).ExteriorRing;
+
+                    Polygon buildingPolygonExteriorOnly = new(new LinearRing(buildingExterior.Coordinates));
 
                     List<float> buildingHeights = new();
                     List<float> buildingGroundHeights = new();
@@ -68,6 +73,12 @@ namespace Kuoste.LidarWorld.Tile
                     for (int i = 0; i < buildingExterior.NumPoints; i++)
                     {
                         Coordinate c = buildingExterior.GetCoordinateN(i);
+
+                        // Geometry.Intersection returns points that are on the higher bounds. Move them a little so that they are inside our area.
+                        if (c.X == bounds.MaxX)
+                            c.X -= RasterBounds.dEpsilon;
+                        if (c.Y == bounds.MaxY)
+                            c.Y -= RasterBounds.dEpsilon;
 
                         // Get building height at the coordinate
                         tile.DemDsm.GetGridIndexes(c.X, c.Y, out int iX, out int iY);
@@ -95,51 +106,51 @@ namespace Kuoste.LidarWorld.Tile
                     // Create roof triangulation
 
                     // Extend bounds to next integer coordinates
-                    Envelope buildingBounds = new(
-                        Math.Floor(buildingPolygon.EnvelopeInternal.MinX),
-                        Math.Ceiling(buildingPolygon.EnvelopeInternal.MaxX),
-                        Math.Floor(buildingPolygon.EnvelopeInternal.MinY),
-                        Math.Ceiling(buildingPolygon.EnvelopeInternal.MaxY));
+
+                    Envelope buildingBounds = buildingExterior.EnvelopeInternal;
+                    Envelope buildingBoundsRounded = new(
+                        Math.Floor(buildingBounds.MinX), Math.Ceiling(buildingBounds.MaxX),
+                        Math.Floor(buildingBounds.MinY), Math.Ceiling(buildingBounds.MaxY));
 
                     // For triangulation, move coordinates to origo
                     SurfaceTriangulation tri = new(
-                        (int)(buildingBounds.MaxX - buildingBounds.MinX),
-                        (int)(buildingBounds.MaxY - buildingBounds.MinY),
-                        0, 0, buildingBounds.MaxX - buildingBounds.MinX,
-                        buildingBounds.MaxY - buildingBounds.MinY, false);
+                        (int)(buildingBoundsRounded.MaxX - buildingBoundsRounded.MinX),
+                        (int)(buildingBoundsRounded.MaxY - buildingBoundsRounded.MinY),
+                        0, 0, buildingBoundsRounded.MaxX - buildingBoundsRounded.MinX,
+                        buildingBoundsRounded.MaxY - buildingBoundsRounded.MinY, false);
 
                     // Make faster by skipping some coordinates
                     int iSkip = 2;
-                    for (int x = (int)buildingBounds.MinX; x < buildingBounds.MaxX; x += iSkip)
+                    for (int x = (int)buildingBoundsRounded.MinX; x < buildingBoundsRounded.MaxX; x += iSkip)
                     {
-                        for (int y = (int)buildingBounds.MinY; y < buildingBounds.MaxY; y += iSkip)
+                        for (int y = (int)buildingBoundsRounded.MinY; y < buildingBoundsRounded.MaxY; y += iSkip)
                         {
                             tile.DemDsm.GetGridIndexes(x, y, out int iRow, out int jCol);
                             BinPoint bp = tile.DemDsm.GetHighestPointInClassRange(iRow, jCol, 0, byte.MaxValue);
 
-                            if (bp != null && buildingPolygon.Contains(new Point(x, y)))
+                            if (bp != null && buildingPolygonExteriorOnly.Contains(new Point(x, y)))
                             {
-                                tri.AddPoint(new LasPoint() { x = x - buildingBounds.MinX, y = y - buildingBounds.MinY, z = bp.Z });
+                                tri.AddPoint(new LasPoint() { x = x - buildingBoundsRounded.MinX, y = y - buildingBoundsRounded.MinY, z = bp.Z });
 
                                 buildingHeights.Add(bp.Z);
                             }
                         }
                     }
 
-                    if (buildingHeights.Count < 10)
+                    if (buildingHeights.Count < _iRequiredBuildingHeights)
                     {
                         continue;
                     }
 
-                    // Take a percentile of building heights. Aiming for the actual roof height, not the walls or overhanging trees.
+                    // Take a percentile of building heights. Aiming for the actual roof height, not the walls, inner yards or overhanging trees.
                     buildingHeights.Sort();
-                    float fBuildingHeight = buildingHeights[buildingHeights.Count / 40];
+                    float fBuildingHeight = buildingHeights[(int)(buildingHeights.Count / (double)100 * _iPercentileForBuildingHeight)];
 
                     // Add also building corners to get the full roof
                     for (int i = 0; i < buildingExterior.NumPoints; i++)
                     {
                         Coordinate c = buildingExterior.GetCoordinateN(i);
-                        tri.AddPoint(new LasPoint() { x = c.X - buildingBounds.MinX, y = c.Y - buildingBounds.MinY, z = fBuildingHeight });
+                        tri.AddPoint(new LasPoint() { x = c.X - buildingBoundsRounded.MinX, y = c.Y - buildingBoundsRounded.MinY, z = fBuildingHeight });
                     }
 
                     try
@@ -161,63 +172,25 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         tri.GetTriangle(i, out Coordinate c0, out Coordinate c1, out Coordinate c2);
 
-                        c0.X = Math.Round(c0.X + buildingBounds.MinX, 2);
-                        c0.Y = Math.Round(c0.Y + buildingBounds.MinY, 2);
-                        c1.X = Math.Round(c1.X + buildingBounds.MinX, 2);
-                        c1.Y = Math.Round(c1.Y + buildingBounds.MinY, 2);
-                        c2.X = Math.Round(c2.X + buildingBounds.MinX, 2);
-                        c2.Y = Math.Round(c2.Y + buildingBounds.MinY, 2);
+                        c0.X = Math.Round(c0.X + buildingBoundsRounded.MinX, 2);
+                        c0.Y = Math.Round(c0.Y + buildingBoundsRounded.MinY, 2);
+                        c1.X = Math.Round(c1.X + buildingBoundsRounded.MinX, 2);
+                        c1.Y = Math.Round(c1.Y + buildingBoundsRounded.MinY, 2);
+                        c2.X = Math.Round(c2.X + buildingBoundsRounded.MinX, 2);
+                        c2.Y = Math.Round(c2.Y + buildingBoundsRounded.MinY, 2);
 
                         // Skip extra segments on concave corners
                         Point center = new((c0.X + c1.X + c2.X) / 3, (c0.Y + c1.Y + c2.Y) / 3);
-                        if (false == buildingPolygon.Contains(center))
+                        if (false == buildingPolygonExteriorOnly.Contains(center))
                         {
                             continue;
                         }
 
-                        // Start polygon
-                        streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
-                        streamWriter.Write("[[");
-
-                        streamWriter.Write($"[{c0.X},{c0.Y},{fBuildingHeight}],");
-                        streamWriter.Write($"[{c1.X},{c1.Y},{fBuildingHeight}],");
-                        streamWriter.Write($"[{c2.X},{c2.Y},{fBuildingHeight}],");
-                        streamWriter.Write($"[{c0.X},{c0.Y},{fBuildingHeight}]");
-
-                        // End polygon
-                        streamWriter.Write("]]");
-                        streamWriter.WriteLine("},");
+                        WriteRoofTriangle(streamWriter, fBuildingHeight, c0, c1, c2);
                     }
 
                     // Add building boundaries
-                    streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
-                    streamWriter.Write("[[");
-
-                    for (int i = 0; i < buildingExterior.Coordinates.Length; i++)
-                    {
-                        Coordinate c = buildingExterior.Coordinates[i];
-
-                        double dGroundHeight = tile.DemDsm.GetValue(c);
-                        if (double.IsNaN(dGroundHeight))
-                        {
-                            // buildingGroundHeights is sorted, so the first value is the lowest
-                            dGroundHeight = buildingGroundHeights[0];
-                        }
-
-                        streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{dGroundHeight}]");
-
-                        if (i < buildingExterior.Coordinates.Length - 1)
-                        {
-                            streamWriter.Write(",");
-                        }
-                    }
-
-                    // End polygon
-                    streamWriter.Write("]]");
-                    streamWriter.WriteLine("},");
-
-                    // End geometry collection
-                    streamWriter.WriteLine("]}");
+                    WriteBuildingPolygon(tile, streamWriter, buildingExterior, buildingGroundHeights);
                 }
             }
 
@@ -225,6 +198,54 @@ namespace Kuoste.LidarWorld.Tile
 
             BuildingsReader reader = new();
             return reader.Build(tile);
+        }
+
+        private static void WriteRoofTriangle(StreamWriter streamWriter, float fBuildingHeight, Coordinate c0, Coordinate c1, Coordinate c2)
+        {
+            // Start polygon
+            streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
+            streamWriter.Write("[[");
+
+            streamWriter.Write($"[{c0.X},{c0.Y},{fBuildingHeight}],");
+            streamWriter.Write($"[{c1.X},{c1.Y},{fBuildingHeight}],");
+            streamWriter.Write($"[{c2.X},{c2.Y},{fBuildingHeight}],");
+            streamWriter.Write($"[{c0.X},{c0.Y},{fBuildingHeight}]");
+
+            // End polygon
+            streamWriter.Write("]]");
+            streamWriter.WriteLine("},");
+        }
+
+        private static void WriteBuildingPolygon(Tile tile, StreamWriter streamWriter, LineString buildingExterior, List<float> buildingGroundHeights)
+        {
+            streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
+            streamWriter.Write("[[");
+
+            for (int i = 0; i < buildingExterior.Coordinates.Length; i++)
+            {
+                Coordinate c = buildingExterior.Coordinates[i];
+
+                double dGroundHeight = tile.DemDsm.GetValue(c);
+                if (double.IsNaN(dGroundHeight))
+                {
+                    // buildingGroundHeights is sorted, so the first value is the lowest
+                    dGroundHeight = buildingGroundHeights[0];
+                }
+
+                streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{dGroundHeight}]");
+
+                if (i < buildingExterior.Coordinates.Length - 1)
+                {
+                    streamWriter.Write(",");
+                }
+            }
+
+            // End polygon
+            streamWriter.Write("]]");
+            streamWriter.WriteLine("},");
+
+            // End geometry collection
+            streamWriter.WriteLine("]}");
         }
     }
 }

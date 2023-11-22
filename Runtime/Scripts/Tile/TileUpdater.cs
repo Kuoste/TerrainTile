@@ -11,7 +11,20 @@ namespace Kuoste.LidarWorld.Tile
     {
         private Tile _tile;
 
-        private const int iHeightOffset = 100;
+        /// <summary>
+        /// Offset to adjust the height for the whole system
+        /// </summary>
+        private const int iHeightOffset = 10;
+
+        /// <summary>
+        /// Used for scaling the trees. Use bigger divider to get smaller trees.
+        /// </summary>
+        private const int _iTreeHeightDivider = 30;
+
+        /// <summary>
+        /// Use to set the depth of the lakes and sea.
+        /// </summary>
+        private const float _fWaterDepth = 3f;
 
         public void SetTile(Tile tile)
         {
@@ -135,7 +148,7 @@ namespace Kuoste.LidarWorld.Tile
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
                             // Reduce terrain height inside water areas
-                            _tile.DemDsm.Dem[x, y] -= 3f;
+                            _tile.DemDsm.Dem[x, y] -= _fWaterDepth;
 
                             iLayerToAlter = 4;
                         }
@@ -201,7 +214,7 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int t = 0; t < _tile.Trees.Count; t++)
             {
-                float fScale = (float)_tile.Trees[t].Z / 30;
+                float fScale = (float)_tile.Trees[t].Z / _iTreeHeightDivider;
 
                 trees[t] = new()
                 {

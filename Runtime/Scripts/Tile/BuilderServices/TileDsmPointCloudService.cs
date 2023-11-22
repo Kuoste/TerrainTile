@@ -48,7 +48,6 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         // Create grid from las files
                         tile.DemDsm = _creator.Build(tile);
-                        //_creator.Build(tile);
                     }
 
                     Interlocked.Increment(ref tile.CompletedCount);
