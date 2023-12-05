@@ -2,7 +2,6 @@ using LasUtility.Common;
 using LasUtility.DEM;
 using LasUtility.LAS;
 using LasUtility.Nls;
-using LasUtility.ShapefileRasteriser;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
@@ -10,14 +9,16 @@ using NetTopologySuite.IO.Esri;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using UnityEditor;
 using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
     public class BuildingsCreator : IBuildingsBuilder
     {
-        const int _iRequiredBuildingHeights = 10;
-        const int _iPercentileForBuildingHeight = 80;
+        private const int _iRequiredBuildingHeights = 7;
+        private const double _dPercentileForBuildingHeight = 0.8;
+        private const int _iRoofPointsSkip = 2;
 
         public List<Tile.Building> Build(Tile tile)
         {
@@ -63,16 +64,18 @@ namespace Kuoste.LidarWorld.Tile
                 // Go through polygons in the intersection
                 for (int j = 0; j < intersection.NumGeometries; j++)
                 {
-                    LineString buildingExterior = ((Polygon)intersection.GetGeometryN(j)).ExteriorRing;
+                    Polygon partialBuilding = (Polygon)intersection.GetGeometryN(j);
 
-                    Polygon buildingPolygonExteriorOnly = new(new LinearRing(buildingExterior.Coordinates));
+                    //LineString buildingExterior = partialBuilding.ExteriorRing;
+
+                    //Polygon buildingPolygonExteriorOnly = new(new LinearRing(buildingExterior.Coordinates));
 
                     List<float> buildingHeights = new();
                     List<float> buildingGroundHeights = new();
 
-                    for (int i = 0; i < buildingExterior.NumPoints; i++)
+                    for (int i = 0; i < partialBuilding.ExteriorRing.NumPoints; i++)
                     {
-                        Coordinate c = buildingExterior.GetCoordinateN(i);
+                        Coordinate c = partialBuilding.ExteriorRing.GetCoordinateN(i);
 
                         // Geometry.Intersection returns points that are on the higher bounds. Move them a little so that they are inside our area.
                         if (c.X == bounds.MaxX)
@@ -107,7 +110,7 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Extend bounds to next integer coordinates
 
-                    Envelope buildingBounds = buildingExterior.EnvelopeInternal;
+                    Envelope buildingBounds = partialBuilding.EnvelopeInternal;
                     Envelope buildingBoundsRounded = new(
                         Math.Floor(buildingBounds.MinX), Math.Ceiling(buildingBounds.MaxX),
                         Math.Floor(buildingBounds.MinY), Math.Ceiling(buildingBounds.MaxY));
@@ -120,15 +123,14 @@ namespace Kuoste.LidarWorld.Tile
                         buildingBoundsRounded.MaxY - buildingBoundsRounded.MinY, false);
 
                     // Make faster by skipping some coordinates
-                    int iSkip = 2;
-                    for (int x = (int)buildingBoundsRounded.MinX; x < buildingBoundsRounded.MaxX; x += iSkip)
+                    for (int x = (int)buildingBoundsRounded.MinX; x < buildingBoundsRounded.MaxX; x += _iRoofPointsSkip)
                     {
-                        for (int y = (int)buildingBoundsRounded.MinY; y < buildingBoundsRounded.MaxY; y += iSkip)
+                        for (int y = (int)buildingBoundsRounded.MinY; y < buildingBoundsRounded.MaxY; y += _iRoofPointsSkip)
                         {
                             tile.DemDsm.GetGridIndexes(x, y, out int iRow, out int jCol);
                             BinPoint bp = tile.DemDsm.GetHighestPointInClassRange(iRow, jCol, 0, byte.MaxValue);
 
-                            if (bp != null && buildingPolygonExteriorOnly.Contains(new Point(x, y)))
+                            if (bp != null && partialBuilding.Contains(new Point(x, y)))
                             {
                                 tri.AddPoint(new LasPoint() { x = x - buildingBoundsRounded.MinX, y = y - buildingBoundsRounded.MinY, z = bp.Z });
 
@@ -139,18 +141,20 @@ namespace Kuoste.LidarWorld.Tile
 
                     if (buildingHeights.Count < _iRequiredBuildingHeights)
                     {
+                        Debug.Log("Not enough points to determine building height.");
                         continue;
                     }
 
                     // Take a percentile of building heights. Aiming for the actual roof height, not the walls, inner yards or overhanging trees.
                     buildingHeights.Sort();
-                    float fBuildingHeight = buildingHeights[(int)(buildingHeights.Count / (double)100 * _iPercentileForBuildingHeight)];
+                    float fBuildingHeight = buildingHeights[(int)(buildingHeights.Count * _dPercentileForBuildingHeight)];
 
-                    // Add also building corners to get the full roof
-                    for (int i = 0; i < buildingExterior.NumPoints; i++)
+                    // Add also points along the building polygon to get a proper triangulation
+                    AddPointsAlongPolygon(partialBuilding.ExteriorRing, buildingBoundsRounded, tri, fBuildingHeight);
+
+                    foreach (LineString ls in partialBuilding.InteriorRings)
                     {
-                        Coordinate c = buildingExterior.GetCoordinateN(i);
-                        tri.AddPoint(new LasPoint() { x = c.X - buildingBoundsRounded.MinX, y = c.Y - buildingBoundsRounded.MinY, z = fBuildingHeight });
+                        AddPointsAlongPolygon(ls, buildingBoundsRounded, tri, fBuildingHeight);
                     }
 
                     try
@@ -181,7 +185,7 @@ namespace Kuoste.LidarWorld.Tile
 
                         // Skip extra segments on concave corners
                         Point center = new((c0.X + c1.X + c2.X) / 3, (c0.Y + c1.Y + c2.Y) / 3);
-                        if (false == buildingPolygonExteriorOnly.Contains(center))
+                        if (false == partialBuilding.Contains(center))
                         {
                             continue;
                         }
@@ -190,7 +194,9 @@ namespace Kuoste.LidarWorld.Tile
                     }
 
                     // Add building boundaries
-                    WriteBuildingPolygon(tile, streamWriter, buildingExterior, buildingGroundHeights);
+                    WriteBuildingPolygon(tile, streamWriter, partialBuilding.ExteriorRing, buildingGroundHeights);
+
+                    // Interior rings (holes) are not yet supported
                 }
             }
 
@@ -198,6 +204,50 @@ namespace Kuoste.LidarWorld.Tile
 
             BuildingsReader reader = new();
             return reader.Build(tile);
+        }
+
+        private static void AddPointsAlongPolygon(LineString ls, Envelope boundsRounded, SurfaceTriangulation tri, float fHeight)
+        {
+            for (int i = 1; i < ls.NumPoints; i++)
+            {
+                Coordinate c0 = ls.GetCoordinateN(i - 1);
+                Coordinate c1 = ls.GetCoordinateN(i);
+
+                // Scale the coordinates because Line handles only integers. This way we get better accuracy instead of ~meter 
+                const int iS = 100;
+                int iX1 = (int)(c0.X * iS);
+                int iY1 = (int)(c0.Y * iS);
+                int iX2 = (int)(c1.X * iS);
+                int iY2 = (int)(c1.Y * iS);
+
+                // Add start point
+                tri.AddPoint(new LasPoint()
+                {
+                    x = c0.X - boundsRounded.MinX,
+                    y = c0.Y - boundsRounded.MinY,
+                    z = fHeight
+                });
+
+                int iCount = 0;
+
+                foreach ((int iX, int iY) in LasUtility.Common.MathUtils.Line(iX1, iY1, iX2, iY2))
+                {
+                    iCount++;
+
+                    // Line functions returns points on higher detail grid. Take only every every iS to get more like ~meter
+                    if (iCount % iS != 0)
+                        continue;
+
+                    tri.AddPoint(new LasPoint()
+                    {
+                        x = (double)iX / iS - boundsRounded.MinX,
+                        y = (double)iY / iS - boundsRounded.MinY,
+                        z = fHeight
+                    });
+                }
+            }
+
+            // No need to add end point since the polygon starts and ends at the same coordinate
         }
 
         private static void WriteRoofTriangle(StreamWriter streamWriter, float fBuildingHeight, Coordinate c0, Coordinate c1, Coordinate c2)
