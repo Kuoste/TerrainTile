@@ -12,6 +12,14 @@ public class SimpleTreeCreator : ITreeBuilder
     const int _iSearchRadiusHighVegetation = 2;
     const int _iRequiredHighVegetationCountAroundTree = 5;
 
+    // Use same bounds so that the older LAZ files with different classifications are treated similarly
+    // New classification: https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/aineistot-ja-rajapinnat/tuotekuvaukset/laserkeilausaineisto-05-p
+    // Old: https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/aineistot-ja-rajapinnat/tuotekuvaukset/laserkeilausaineisto
+    const int _iHighVegetationLowerBound = 2;
+    const int _iHighVegetationHigherBound = 50;
+
+    private bool IsHighVegetation(float z) => z >= _iHighVegetationLowerBound && z <= _iHighVegetationHigherBound;
+
     public List<Point> Build(Tile tile)
     {
         TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -38,16 +46,31 @@ public class SimpleTreeCreator : ITreeBuilder
                 if (AreBuildingsRoadsNearby(tile, iRow, jCol, _iSearchRadiusBuildingsRoads))
                     continue;
 
-                int iHighVegetationCount = 0;
-
                 List<BinPoint> centerPoints = tile.DemDsm.GetPoints(iRow, jCol);
 
-                if (centerPoints.Count == 0 || centerPoints[0].Class != (byte)PointCloud05p.Classes.HighVegetation)
+                if (centerPoints.Count == 0)
                 {
                     continue;
                 }
 
-                float fTreeHeight = float.MinValue;
+                float fGroundHeight = (float)tile.DemDsm.GetValue(iRow, jCol);
+
+                // Ground height is not always available (e.g. triangulation on corners of the tile)
+                if (float.IsNaN(fGroundHeight))
+                {
+                    continue;
+                }
+
+                float fHeightForPossibleTree = centerPoints[0].Z - fGroundHeight;
+
+                // Our tree candidate has to be appropriate height
+                if (false == IsHighVegetation(fHeightForPossibleTree))
+                {
+                    continue;
+                }
+
+                float fNearbyMaxHeights = float.MinValue;
+                int iHighVegetationCount = 0;
 
                 for (int ii = iRow - _iSearchRadiusHighVegetation; ii <= iRow + _iSearchRadiusHighVegetation; ii++)
                 {
@@ -63,9 +86,9 @@ public class SimpleTreeCreator : ITreeBuilder
 
                         foreach (BinPoint p in neighborhoodPoints)
                         {
-                            if (p.Class == (byte)PointCloud05p.Classes.HighVegetation)
+                            if (IsHighVegetation(p.Z - fGroundHeight))
                             {
-                                fTreeHeight = Math.Max(fTreeHeight, p.Z);
+                                fNearbyMaxHeights = Math.Max(fNearbyMaxHeights, p.Z - fGroundHeight);
 
                                 iHighVegetationCount++;
                             }
@@ -80,28 +103,18 @@ public class SimpleTreeCreator : ITreeBuilder
                 }
 
                 // There has to be enough high vegetation points in the neighborhood
-                // and the tree has to be the highest point.
-                if (iHighVegetationCount < _iRequiredHighVegetationCountAroundTree || fTreeHeight > centerPoints[0].Z)
+                // and the tree candidate has to be the highest point among them.
+                if (iHighVegetationCount >= _iRequiredHighVegetationCountAroundTree && fHeightForPossibleTree >= fNearbyMaxHeights)
                 {
-                    continue;
+                    // Write Point
+                    streamWriter.Write("{\"type\":\"Point\",\"coordinates\":");
+                    tile.DemDsm.GetGridCoordinates(iRow, jCol, out double x, out double y);
+                    // Write as int since the accuracy is in ~meters
+                    streamWriter.Write($"[{(int)x},{(int)y},{(int)fNearbyMaxHeights}]");
+                    streamWriter.WriteLine("}");
+
+                    trees.Add(new(((int)x - bounds.MinX) / Tile.EdgeLength, ((int)y - bounds.MinY) / Tile.EdgeLength, (int)fNearbyMaxHeights));
                 }
-
-                fTreeHeight -= (float)tile.DemDsm.GetValue(iRow, jCol);
-
-                // Ground height is not always available (e.g. triangulation on corners of the tile)
-                if (float.IsNaN(fTreeHeight))
-                {
-                    continue;
-                }
-
-                // Write Point
-                streamWriter.Write("{\"type\":\"Point\",\"coordinates\":");
-                tile.DemDsm.GetGridCoordinates(iRow, jCol, out double x, out double y);
-                // Write as int since the accuracy is in ~meters
-                streamWriter.Write($"[{(int)x},{(int)y},{(int)fTreeHeight}]");
-                streamWriter.WriteLine("}");
-
-                trees.Add(new(((int)x - bounds.MinX) / Tile.EdgeLength, ((int)y - bounds.MinY) / Tile.EdgeLength, (int)fTreeHeight));
             }
         }
 

@@ -66,7 +66,6 @@ namespace Kuoste.LidarWorld.Tile
 
             reader.OpenReader(sFilename);
 
-            double dMaxGroundHeight = double.MinValue;
             LasPoint p;
 
             int iSubmeshesPerEdge = (int)Math.Round((reader.MaxX - reader.MinX) / Tile.EdgeLength);
@@ -100,25 +99,21 @@ namespace Kuoste.LidarWorld.Tile
                 int iy = y / Tile.EdgeLength;
                 int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
 
+                // Index sanity check
+                if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
+                {
+                    Debug.LogFormat("Coordinates of a point (x={0}, y={1} are outside the area defined in the file {2} header ", x, y, sFilename);
+                    continue;
+                }
+
                 // Classifications from
                 // https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/asiantuntevalle-kayttajalle/tuotekuvaukset/laserkeilausaineisto-05-p
                 if (p.classification == (byte)PointCloud05p.Classes.Ground)
                 {
-                    //dMinGroundHeight = Math.Min(p.y, dMinGroundHeight);
-                    dMaxGroundHeight = Math.Max(p.y, dMaxGroundHeight);
-
-                    // Index sanity check
-                    if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
-                    {
-                        Debug.LogFormat("Coordinates of a point (x={0}, y={1} are outside the area defined in the file {2} header ", x, y, sFilename);
-                        continue;
-                    }
-
                     triangulations[iSubmeshIndex].AddPoint(p);
 
                     // Also add the ground point to the grid, so we don't have to query heights to cells where we already have a height.
                     grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, true);
-
 
                     // Look if point is part of another submesh overlap area.
                     // Overlap is needed because otherwise adjacent triangulated surfaces have a gap in between.
