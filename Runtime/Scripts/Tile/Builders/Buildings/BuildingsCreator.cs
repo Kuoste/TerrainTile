@@ -19,6 +19,7 @@ namespace Kuoste.LidarWorld.Tile
         private const int _iRequiredBuildingHeights = 7;
         private const double _dPercentileForBuildingHeight = 0.8;
         private const int _iRoofPointsSkip = 2;
+        private const float _fDefaultBuildingHeight = 3.5f;
 
         public List<Tile.Building> Build(Tile tile)
         {
@@ -104,7 +105,9 @@ namespace Kuoste.LidarWorld.Tile
                         Debug.Log("No ground height for a building found.");
                         continue;
                     }
+
                     buildingGroundHeights.Sort();
+                    float fLowestGroundHeight = buildingGroundHeights[0];
 
                     // Create roof triangulation
 
@@ -139,15 +142,20 @@ namespace Kuoste.LidarWorld.Tile
                         }
                     }
 
-                    if (buildingHeights.Count < _iRequiredBuildingHeights)
+                    float fBuildingHeight;
+
+                    if (buildingHeights.Count >= _iRequiredBuildingHeights)
+                    {
+                        // Take a percentile of building heights. Aiming for the actual roof height, not the walls, inner yards or overhanging trees.
+                        buildingHeights.Sort();
+                        fBuildingHeight = buildingHeights[(int)(buildingHeights.Count * _dPercentileForBuildingHeight)];
+                    }
+                    else
                     {
                         Debug.Log("Not enough points to determine building height.");
-                        continue;
+                        fBuildingHeight = fLowestGroundHeight + _fDefaultBuildingHeight;
                     }
 
-                    // Take a percentile of building heights. Aiming for the actual roof height, not the walls, inner yards or overhanging trees.
-                    buildingHeights.Sort();
-                    float fBuildingHeight = buildingHeights[(int)(buildingHeights.Count * _dPercentileForBuildingHeight)];
 
                     // Add also points along the building polygon to get a proper triangulation
                     AddPointsAlongPolygon(partialBuilding.ExteriorRing, buildingBoundsRounded, tri, fBuildingHeight);
@@ -194,7 +202,7 @@ namespace Kuoste.LidarWorld.Tile
                     }
 
                     // Add building boundaries
-                    WriteBuildingPolygon(tile, streamWriter, partialBuilding.ExteriorRing, buildingGroundHeights);
+                    WriteBuildingPolygon(tile, streamWriter, partialBuilding.ExteriorRing, fLowestGroundHeight);
 
                     // Interior rings (holes) are not yet supported
                 }
@@ -266,7 +274,7 @@ namespace Kuoste.LidarWorld.Tile
             streamWriter.WriteLine("},");
         }
 
-        private static void WriteBuildingPolygon(Tile tile, StreamWriter streamWriter, LineString buildingExterior, List<float> buildingGroundHeights)
+        private static void WriteBuildingPolygon(Tile tile, StreamWriter streamWriter, LineString buildingExterior, float fLowestGroundHeight)
         {
             streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");
             streamWriter.Write("[[");
@@ -276,11 +284,9 @@ namespace Kuoste.LidarWorld.Tile
                 Coordinate c = buildingExterior.Coordinates[i];
 
                 double dGroundHeight = tile.DemDsm.GetValue(c);
+
                 if (double.IsNaN(dGroundHeight))
-                {
-                    // buildingGroundHeights is sorted, so the first value is the lowest
-                    dGroundHeight = buildingGroundHeights[0];
-                }
+                    dGroundHeight = fLowestGroundHeight;
 
                 streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{dGroundHeight}]");
 
