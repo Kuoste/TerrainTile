@@ -57,14 +57,7 @@ namespace Kuoste.LidarWorld.Tile
             //Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
             //sw.Restart();
 
-            // Scale terrain height
-            for (int x = 0; x < terrainData.heightmapResolution; x++)
-            {
-                for (int y = 0; y < terrainData.heightmapResolution; y++)
-                {
-                    _tile.DemDsm.Dem[x, y] = (_tile.DemDsm.Dem[x, y] + iHeightOffset) / _tile.DemMaxHeight;
-                }
-            }
+            ScaleDemHeight(terrainData);
 
             terrainData.SetHeights(0, 0, _tile.DemDsm.Dem);
 
@@ -88,6 +81,48 @@ namespace Kuoste.LidarWorld.Tile
             // Remove the tile updater component to save memory
             _tile.Clear();
             Destroy(this);
+        }
+
+        private void ScaleDemHeight(TerrainData terrainData)
+        {
+            // Scale terrain height
+            float hOutOfBoundsLowTotal = 0;
+            int iOutOfBoundsLowCount = 0;
+            float hOutOfBoundsHighTotal = 0;
+            int iOutOfBoundsHighCount = 0;
+
+            for (int x = 0; x < terrainData.heightmapResolution; x++)
+            {
+                for (int y = 0; y < terrainData.heightmapResolution; y++)
+                {
+                    float h = (_tile.DemDsm.Dem[x, y] + iHeightOffset);
+
+                    if (h < 0.0f)
+                    {
+                        iOutOfBoundsLowCount++;
+                        hOutOfBoundsLowTotal += h;
+                    }
+                    else if (h > _tile.DemMaxHeight)
+                    {
+                        iOutOfBoundsHighCount++;
+                        hOutOfBoundsHighTotal += h;
+                    }
+
+                    _tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
+                }
+            }
+
+            if (iOutOfBoundsLowCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsLowCount} negative DEM heights. Avg was {hOutOfBoundsLowTotal / iOutOfBoundsLowCount}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
+
+            if (iOutOfBoundsHighCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Avg was {hOutOfBoundsHighTotal / iOutOfBoundsHighCount}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
         }
 
         private void AddBuildings()
