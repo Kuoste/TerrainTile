@@ -20,7 +20,7 @@ namespace Kuoste.LidarWorld.Tile
         public int DemMaxHeight;
 
         public int AlphamapResolution;
-        public int HeightMapResolution;
+        //public int HeightMapResolution;
 
         /// <summary>
         /// Tile edge length in meters

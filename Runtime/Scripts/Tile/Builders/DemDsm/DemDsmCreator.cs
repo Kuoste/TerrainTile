@@ -17,12 +17,17 @@ namespace Kuoste.LidarWorld.Tile
         /// <summary>
         /// Use some overlap in triangulations or else the triangulations won't be complete on edges
         /// </summary>
-        const int _iOverlap = 50;
+        const int _iOverlapInMeters = (_iTotalEdgeLengthInMeters - Tile.EdgeLength) / 2;
 
         /// <summary>
         /// Total triangulation edge length
         /// </summary>
-        const int _iTotalEdgeLength = Tile.EdgeLength + 2 * _iOverlap;
+        const int _iTotalEdgeLengthInMeters = 1084;
+
+        const int _iTotalEdgeLengthInPixels = 1110;
+
+        const float _dOverlapPercentageLowBound = (float)_iOverlapInMeters / Tile.EdgeLength;
+        const float _dOverlapPercentageHighBound = 1 - _dOverlapPercentageLowBound;
 
         /// <summary>
         /// Keep track of the las files so that we don't try to process the same tile multiple times.
@@ -81,11 +86,12 @@ namespace Kuoste.LidarWorld.Tile
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
                 TileNamer.Decode(sSubmeshName, out Envelope extent);
 
-                grids[i] = VoxelGrid.CreateGrid(tile.HeightMapResolution, tile.HeightMapResolution, extent);
+                extent.ExpandBy(_iOverlapInMeters);
 
-                triangulations[i] = new SurfaceTriangulation(_iTotalEdgeLength, _iTotalEdgeLength,
-                    extent.MinX - _iOverlap, extent.MinY - _iOverlap,
-                    extent.MaxX + _iOverlap, extent.MaxY + _iOverlap);
+                grids[i] = VoxelGrid.CreateGrid(_iTotalEdgeLengthInPixels, _iTotalEdgeLengthInPixels, extent);
+
+                triangulations[i] = new SurfaceTriangulation(_iTotalEdgeLengthInMeters, _iTotalEdgeLengthInMeters,
+                    extent.MinX, extent.MinY, extent.MaxX, extent.MaxY);
             }
 
 
@@ -102,279 +108,181 @@ namespace Kuoste.LidarWorld.Tile
                 //    continue;
                 //}
 
+                if (p.classification != (byte)PointCloud05p.Classes.LowVegetation &&
+                    p.classification != (byte)PointCloud05p.Classes.MedVegetation &&
+                    p.classification != (byte)PointCloud05p.Classes.HighVegetation &&
+                    p.classification != (byte)PointCloud05p.Classes.Ground)
+                {
+                    continue;
+                }
+
                 // Get submesh indices
                 int x = (int)(p.x - bounds3km.MinX);
                 int y = (int)(p.y - bounds3km.MinY);
                 int ix = x / Tile.EdgeLength;
                 int iy = y / Tile.EdgeLength;
-                int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
 
-                // Index sanity check
-                if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
+                AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                // Look if point is part of another submesh overlap area.
+                // Overlap is needed because otherwise adjacent triangulated surfaces have a gap in between.
+
+                float dPercentageX = (float)x / Tile.EdgeLength - ix;
+                float dPercentageY = (float)y / Tile.EdgeLength - iy;
+
+                if (dPercentageX < _dOverlapPercentageLowBound || dPercentageX > _dOverlapPercentageHighBound ||
+                    dPercentageY < _dOverlapPercentageLowBound || dPercentageY > _dOverlapPercentageHighBound)
                 {
-                    Debug.LogFormat("Coordinates of a point (x={0}, y={1} are outside the area defined in the file {2} header ", x, y, sFilename);
-                    continue;
-                }
-
-                // Classifications from
-                // https://www.maanmittauslaitos.fi/kartat-ja-paikkatieto/asiantuntevalle-kayttajalle/tuotekuvaukset/laserkeilausaineisto-05-p
-                if (p.classification == (byte)PointCloud05p.Classes.Ground)
-                {
-                    triangulations[iSubmeshIndex].AddPoint(p);
-
-                    // Also add the ground point to the grid, so we don't have to query heights to cells where we already have a height.
-                    grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, true);
-
-                    // Look if point is part of another submesh overlap area.
-                    // Overlap is needed because otherwise adjacent triangulated surfaces have a gap in between.
+                    // This point belongs to an extended area of one or more other submesh.
 
                     int iWholeMeshEdgeLength = Tile.EdgeLength * iSubmeshesPerEdge;
-                    int iOverlapInMeters = _iOverlap;
-                    float dOverlapPercentageLowBound = (float)iOverlapInMeters / Tile.EdgeLength;
-                    float dOverlapPercentageHighBound = 1 - dOverlapPercentageLowBound;
 
-                    float dPercentageX = (float)x / Tile.EdgeLength - ix;
-                    float dPercentageY = (float)y / Tile.EdgeLength - iy;
-
-                    if (dPercentageX < dOverlapPercentageLowBound || dPercentageX > dOverlapPercentageHighBound ||
-                        dPercentageY < dOverlapPercentageLowBound || dPercentageY > dOverlapPercentageHighBound)
+                    if (x < _iOverlapInMeters || x > (iWholeMeshEdgeLength - _iOverlapInMeters) ||
+                        y < _iOverlapInMeters || y > (iWholeMeshEdgeLength - _iOverlapInMeters))
                     {
-                        // This point belongs to an extended area of one or more other submesh.
+                        // Part of another file. Todo: Save these points to four separate files
+                        // so they can be read when adjacent laz files are processed.
+                        continue;
+                    }
 
-                        if (x < iOverlapInMeters || x > (iWholeMeshEdgeLength - iOverlapInMeters) ||
-                            y < iOverlapInMeters || y > (iWholeMeshEdgeLength - iOverlapInMeters))
+                    if (dPercentageX < _dOverlapPercentageLowBound)
+                    {
+                        ix = (x - _iOverlapInMeters) / Tile.EdgeLength;
+                        iy = y / Tile.EdgeLength;
+
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                        if (dPercentageY < _dOverlapPercentageLowBound)
                         {
-                            // Part of another file. Todo: Save these points to four separate files
-                            // so they can be read when adjacent laz files are processed.
-                            continue;
+                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = (y - _iOverlapInMeters) / Tile.EdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            ix = x / Tile.EdgeLength;
+                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
                         }
 
-                        if (dPercentageX < dOverlapPercentageLowBound)
+                        if (dPercentageY > _dOverlapPercentageHighBound)
                         {
-                            ix = (x - iOverlapInMeters) / Tile.EdgeLength;
+                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = (y + _iOverlapInMeters) / Tile.EdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            ix = x / Tile.EdgeLength;
+                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                        }
+                    }
+
+                    if (dPercentageX > _dOverlapPercentageHighBound)
+                    {
+
+                        ix = (x + _iOverlapInMeters) / Tile.EdgeLength;
+                        iy = y / Tile.EdgeLength;
+
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                        if (dPercentageY < _dOverlapPercentageLowBound)
+                        {
+                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = (y - _iOverlapInMeters) / Tile.EdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            ix = x / Tile.EdgeLength;
+                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                        }
+
+                        if (dPercentageY > _dOverlapPercentageHighBound)
+                        {
+                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = (y + _iOverlapInMeters) / Tile.EdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            ix = x / Tile.EdgeLength;
+                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                        }
+                    }
+
+                    if (dPercentageY < _dOverlapPercentageLowBound)
+                    {
+                        ix = x / Tile.EdgeLength;
+                        iy = (y - _iOverlapInMeters) / Tile.EdgeLength;
+
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                        if (dPercentageX < _dOverlapPercentageLowBound)
+                        {
+                            ix = (x - _iOverlapInMeters) / Tile.EdgeLength;
+                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
                             iy = y / Tile.EdgeLength;
 
-                            if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                            {
-                                int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                            }
-
-                            if (dPercentageY < dOverlapPercentageLowBound)
-                            {
-                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (y - iOverlapInMeters) / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                ix = x / Tile.EdgeLength;
-                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
-
-                            if (dPercentageY > dOverlapPercentageHighBound)
-                            {
-                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (y + iOverlapInMeters) / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                ix = x / Tile.EdgeLength;
-                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
                         }
 
-
-                        if (dPercentageX > dOverlapPercentageHighBound)
+                        if (dPercentageX > _dOverlapPercentageHighBound)
                         {
+                            ix = (x + _iOverlapInMeters) / Tile.EdgeLength;
+                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
 
-                            ix = (x + iOverlapInMeters) / Tile.EdgeLength;
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+
+                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
                             iy = y / Tile.EdgeLength;
 
-                            if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                            {
-                                int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                        }
+                    }
 
-                            if (dPercentageY < dOverlapPercentageLowBound)
-                            {
-                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (y - iOverlapInMeters) / Tile.EdgeLength;
+                    if (dPercentageY > _dOverlapPercentageHighBound)
+                    {
+                        ix = x / Tile.EdgeLength;
+                        iy = (y + _iOverlapInMeters) / Tile.EdgeLength;
 
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
 
-                                ix = x / Tile.EdgeLength;
-                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                        if (dPercentageX < _dOverlapPercentageLowBound)
+                        {
+                            ix = (x - _iOverlapInMeters) / Tile.EdgeLength;
+                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
 
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
 
-                            if (dPercentageY > dOverlapPercentageHighBound)
-                            {
-                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = (y + iOverlapInMeters) / Tile.EdgeLength;
+                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = y / Tile.EdgeLength;
 
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                ix = x / Tile.EdgeLength;
-                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
                         }
 
-
-                        if (dPercentageY < dOverlapPercentageLowBound)
+                        if (dPercentageX > _dOverlapPercentageHighBound)
                         {
-                            ix = x / Tile.EdgeLength;
-                            iy = (y - iOverlapInMeters) / Tile.EdgeLength;
+                            ix = (x + _iOverlapInMeters) / Tile.EdgeLength;
+                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
 
-                            if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                            {
-                                int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
 
-                            if (dPercentageX < dOverlapPercentageLowBound)
-                            {
-                                ix = (x - iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            iy = y / Tile.EdgeLength;
 
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = y / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
-
-                            if (dPercentageX > dOverlapPercentageHighBound)
-                            {
-                                ix = (x + iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (y - iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = y / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
-                        }
-
-                        if (dPercentageY > dOverlapPercentageHighBound)
-                        {
-                            ix = x / Tile.EdgeLength;
-                            iy = (y + iOverlapInMeters) / Tile.EdgeLength;
-
-                            if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                            {
-                                int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                            }
-
-                            if (dPercentageX < dOverlapPercentageLowBound)
-                            {
-                                ix = (x - iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                //ix = (x - iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = y / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
-
-                            if (dPercentageX > dOverlapPercentageHighBound)
-                            {
-                                ix = (x + iOverlapInMeters) / Tile.EdgeLength;
-                                //iy = (y + iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-
-                                //ix = (x + iOverlapInMeters) / m_iSubmeshEdgeLength;
-                                iy = y / Tile.EdgeLength;
-
-                                if (ix >= 0 && ix < iSubmeshesPerEdge && iy >= 0 && iy < iSubmeshesPerEdge)
-                                {
-                                    int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
-                                    triangulations[iOverlapSubmeshIndex].AddPoint(p);
-                                }
-                            }
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
                         }
                     }
                 }
-                else if (p.classification == (byte)PointCloud05p.Classes.LowVegetation ||
-                    p.classification == (byte)PointCloud05p.Classes.MedVegetation ||
-                    p.classification == (byte)PointCloud05p.Classes.HighVegetation)
-                {
-                    grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, false);
-                }
+
             }
 
             reader.CloseReader();
@@ -400,6 +308,9 @@ namespace Kuoste.LidarWorld.Tile
                 string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
                 TileNamer.Decode(sSubmeshName, out Envelope env);
 
+                // Cannot use full overlap because triangulation is not complete on edges
+                env.ExpandBy(_iOverlapInMeters / 2);
+
                 grid.SetMissingHeightsFromTriangulation(tri,
                     (int)env.MinX, (int)env.MinY, (int)env.MaxX, (int)env.MaxY,
                     out int iMissBefore, out int iMissAfter);
@@ -423,7 +334,7 @@ namespace Kuoste.LidarWorld.Tile
                 // Save grid to filesystem for future use
                 grids[i].Serialize(Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(s1km1kmTilename, tile.Version)));
 
-                //grids[i].WriteDemAsAscii(Path.Combine(tile.DirectoryIntermediate, s1km1kmTilename + ".asc"));
+                grids[i].WriteDemAsAscii(Path.Combine(tile.DirectoryIntermediate, s1km1kmTilename + ".asc"));
 
                 if (tile.Name == s1km1kmTilename)
                 {
@@ -437,6 +348,23 @@ namespace Kuoste.LidarWorld.Tile
             _3kmDemDsmDone.TryUpdate(s3km3kmTileName, true, false);
             return output;
 
+        }
+
+        private static void AddPoint(LasPoint p, int iSubmeshesPerEdge, SurfaceTriangulation[] triangulations, VoxelGrid[] grids, int ix, int iy)
+        {
+            int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
+
+            if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
+            {
+                Debug.LogFormat("Coordinates of a point (x={0}, y={1} are out of bounds", p.x, p.y);
+            }
+
+            bool bIsGround = p.classification == (byte)PointCloud05p.Classes.Ground;
+
+            grids[iOverlapSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, bIsGround);
+
+            if (bIsGround)
+                triangulations[iOverlapSubmeshIndex].AddPoint(p);
         }
     }
 }

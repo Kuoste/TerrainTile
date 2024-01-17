@@ -1,5 +1,7 @@
+using LasUtility.Common;
 using LasUtility.Nls;
 using NetTopologySuite.Geometries;
+using System;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -37,6 +39,8 @@ namespace Kuoste.LidarWorld.Tile
             Stopwatch swTotal = Stopwatch.StartNew();
             //Stopwatch sw = Stopwatch.StartNew();
 
+            TileNamer.Decode(_tile.Name, out Envelope bounds);
+
             TerrainData terrainData = GetComponent<Terrain>().terrainData;
 
             SetAlphaMaps(terrainData);
@@ -57,9 +61,77 @@ namespace Kuoste.LidarWorld.Tile
             //Debug.Log($"Setting trees for tile {_tile.Name} took {sw.Elapsed.TotalSeconds} s");
             //sw.Restart();
 
-            ScaleDemHeight(terrainData);
+            // Fill the heights for 1 km2 tile in a way that border node heigts are shared between 
+            // adjacent tiles
 
-            terrainData.SetHeights(0, 0, _tile.DemDsm.Dem);
+            float fOutOfBoundsLowest = 0, fOutOfBoundsHighest = 0;
+            int iOutOfBoundsLowCount = 0, iOutOfBoundsHighCount = 0, iNanCount = 0;
+
+            float[,] fHeights = new float[terrainData.heightmapResolution, terrainData.heightmapResolution];
+
+            // Use -1 because the last row/col is for shared data
+            float fIncreaseInMeters = (float)Tile.EdgeLength / (terrainData.heightmapResolution - 1);
+
+            for (int x = 0; x < terrainData.heightmapResolution; x++)
+            {
+                for (int y = 0; y < terrainData.heightmapResolution; y++)
+                {
+                    Coordinate c = new(bounds.MinX + x * fIncreaseInMeters,
+                        bounds.MinY + y * fIncreaseInMeters);
+
+                    RcIndex rc = _tile.DemDsm.Bounds.ProjToCell(c);
+
+                    float h = _tile.DemDsm.Dem[rc.Row, rc.Column] + iHeightOffset;
+
+                    if (float.IsNaN(h))
+                    {
+                        fHeights[x, y] = 0;
+                        iNanCount++;
+                        continue;
+                    }
+
+                    if (h < 0.0f)
+                    {
+                        iOutOfBoundsLowCount++;
+                        fOutOfBoundsLowest = Math.Min(fOutOfBoundsLowest, h);
+                    }
+                    else if (h > _tile.DemMaxHeight)
+                    {
+                        iOutOfBoundsHighCount++;
+                        fOutOfBoundsHighest = Math.Max(fOutOfBoundsHighest, h);
+                    }
+
+
+                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(c);
+                    if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                    {
+                        // Reduce terrain height inside water areas
+                        h -= _fWaterDepth;
+                    }
+
+                    fHeights[y, x] = h / _tile.DemMaxHeight;
+                    //_tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
+                }
+            }
+
+            if (iOutOfBoundsLowCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsLowCount} negative DEM heights. Max was {fOutOfBoundsLowest}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
+
+            if (iOutOfBoundsHighCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
+
+            if (iNanCount > 0)
+            {
+                Debug.Log($"Dem unavailable on {iNanCount} cells");
+            }
+
+            terrainData.SetHeights(0, 0, fHeights);
 
             //terrainData.SyncHeightmap();
             //Terrain.activeTerrain.Flush();
@@ -81,48 +153,6 @@ namespace Kuoste.LidarWorld.Tile
             // Remove the tile updater component to save memory
             _tile.Clear();
             Destroy(this);
-        }
-
-        private void ScaleDemHeight(TerrainData terrainData)
-        {
-            // Scale terrain height
-            float hOutOfBoundsLowTotal = 0;
-            int iOutOfBoundsLowCount = 0;
-            float hOutOfBoundsHighTotal = 0;
-            int iOutOfBoundsHighCount = 0;
-
-            for (int x = 0; x < terrainData.heightmapResolution; x++)
-            {
-                for (int y = 0; y < terrainData.heightmapResolution; y++)
-                {
-                    float h = (_tile.DemDsm.Dem[x, y] + iHeightOffset);
-
-                    if (h < 0.0f)
-                    {
-                        iOutOfBoundsLowCount++;
-                        hOutOfBoundsLowTotal += h;
-                    }
-                    else if (h > _tile.DemMaxHeight)
-                    {
-                        iOutOfBoundsHighCount++;
-                        hOutOfBoundsHighTotal += h;
-                    }
-
-                    _tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
-                }
-            }
-
-            if (iOutOfBoundsLowCount > 0)
-            {
-                Debug.Log($"Found {iOutOfBoundsLowCount} negative DEM heights. Avg was {hOutOfBoundsLowTotal / iOutOfBoundsLowCount}." +
-                    $"iHeightOffset: {iHeightOffset}");
-            }
-
-            if (iOutOfBoundsHighCount > 0)
-            {
-                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Avg was {hOutOfBoundsHighTotal / iOutOfBoundsHighCount}." +
-                    $"iHeightOffset: {iHeightOffset}");
-            }
         }
 
         private void AddBuildings()
@@ -182,9 +212,6 @@ namespace Kuoste.LidarWorld.Tile
 
                         if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                         {
-                            // Reduce terrain height inside water areas
-                            _tile.DemDsm.Dem[x, y] -= _fWaterDepth;
-
                             iLayerToAlter = 4;
                         }
                         else if (TopographicDb.FieldPolygonClassesToRasterValues.ContainsValue(bTerrainType))
