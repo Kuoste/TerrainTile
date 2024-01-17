@@ -80,7 +80,7 @@ public class IWaterAreasCreator : IWaterAreasBuilder
                         List<CoordinateZ> coords = new();
                         foreach (Coordinate c in p.ExteriorRing.Coordinates)
                         {
-                            coords.Add(new CoordinateZ(Math.Round(c.X, 2), Math.Round(c.Y, 2), dHeight));
+                            coords.Add(new CoordinateZ(Math.Round(c.X, 2), Math.Round(c.Y, 2), Math.Round(dHeight, 2)));
                         }
 
                         streamWriter.Write("{ \"type\":\"Polygon\", \"coordinates\": ");

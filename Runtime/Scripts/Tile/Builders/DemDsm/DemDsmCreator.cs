@@ -36,6 +36,7 @@ namespace Kuoste.LidarWorld.Tile
 
             TileNamer.Decode(tile.Name, out Envelope bounds1km);
             string s3km3kmTileName = TileNamer.Encode((int)bounds1km.MinX, (int)bounds1km.MinY, 3000);
+            TileNamer.Decode(s3km3kmTileName, out Envelope bounds3km);
 
             // Check if the tile is already being processed
             if (true == _3kmDemDsmDone.TryGetValue(s3km3kmTileName, out bool bIsCompleted))
@@ -87,14 +88,23 @@ namespace Kuoste.LidarWorld.Tile
                     extent.MaxX + _iOverlap, extent.MaxY + _iOverlap);
             }
 
+
+            //int iCount = 0;
+
             while ((p = reader.ReadPoint()) != null)
             {
                 if (tile.Token.IsCancellationRequested)
                     return new();
 
+                //iCount++;
+                //if (iCount % 2 == 0)
+                //{
+                //    continue;
+                //}
+
                 // Get submesh indices
-                int x = (int)(p.x - reader.MinX);
-                int y = (int)(p.y - reader.MinY);
+                int x = (int)(p.x - bounds3km.MinX);
+                int y = (int)(p.y - bounds3km.MinY);
                 int ix = x / Tile.EdgeLength;
                 int iy = y / Tile.EdgeLength;
                 int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
@@ -412,6 +422,8 @@ namespace Kuoste.LidarWorld.Tile
 
                 // Save grid to filesystem for future use
                 grids[i].Serialize(Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(s1km1kmTilename, tile.Version)));
+
+                //grids[i].WriteDemAsAscii(Path.Combine(tile.DirectoryIntermediate, s1km1kmTilename + ".asc"));
 
                 if (tile.Name == s1km1kmTilename)
                 {
