@@ -64,72 +64,10 @@ namespace Kuoste.LidarWorld.Tile
             // Fill the heights for 1 km2 tile in a way that border node heigts are shared between 
             // adjacent tiles
 
-            float fOutOfBoundsLowest = 0, fOutOfBoundsHighest = 0;
-            int iOutOfBoundsLowCount = 0, iOutOfBoundsHighCount = 0, iNanCount = 0;
 
             float[,] fHeights = new float[terrainData.heightmapResolution, terrainData.heightmapResolution];
 
-            // Use -1 because the last row/col is for shared data
-            float fIncreaseInMeters = (float)Tile.EdgeLength / (terrainData.heightmapResolution - 1);
-
-            for (int x = 0; x < terrainData.heightmapResolution; x++)
-            {
-                for (int y = 0; y < terrainData.heightmapResolution; y++)
-                {
-                    Coordinate c = new(bounds.MinX + x * fIncreaseInMeters,
-                        bounds.MinY + y * fIncreaseInMeters);
-
-                    RcIndex rc = _tile.DemDsm.Bounds.ProjToCell(c);
-
-                    float h = _tile.DemDsm.Dem[rc.Row, rc.Column] + iHeightOffset;
-
-                    if (float.IsNaN(h))
-                    {
-                        fHeights[x, y] = 0;
-                        iNanCount++;
-                        continue;
-                    }
-
-                    if (h < 0.0f)
-                    {
-                        iOutOfBoundsLowCount++;
-                        fOutOfBoundsLowest = Math.Min(fOutOfBoundsLowest, h);
-                    }
-                    else if (h > _tile.DemMaxHeight)
-                    {
-                        iOutOfBoundsHighCount++;
-                        fOutOfBoundsHighest = Math.Max(fOutOfBoundsHighest, h);
-                    }
-
-
-                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(c);
-                    if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
-                    {
-                        // Reduce terrain height inside water areas
-                        h -= _fWaterDepth;
-                    }
-
-                    fHeights[y, x] = h / _tile.DemMaxHeight;
-                    //_tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
-                }
-            }
-
-            if (iOutOfBoundsLowCount > 0)
-            {
-                Debug.Log($"Found {iOutOfBoundsLowCount} negative DEM heights. Max was {fOutOfBoundsLowest}." +
-                    $"iHeightOffset: {iHeightOffset}");
-            }
-
-            if (iOutOfBoundsHighCount > 0)
-            {
-                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
-                    $"iHeightOffset: {iHeightOffset}");
-            }
-
-            if (iNanCount > 0)
-            {
-                Debug.Log($"Dem unavailable on {iNanCount} cells");
-            }
+            ScaleAndReprojectDem(bounds, terrainData.heightmapResolution, fHeights);
 
             terrainData.SetHeights(0, 0, fHeights);
 
@@ -153,6 +91,76 @@ namespace Kuoste.LidarWorld.Tile
             // Remove the tile updater component to save memory
             _tile.Clear();
             Destroy(this);
+        }
+
+        private void ScaleAndReprojectDem(Envelope bounds, int iHeightmapResolution, float[,] fHeights)
+        {
+            float fOutOfBoundsLowest = 0, fOutOfBoundsHighest = 0;
+            int iOutOfBoundsLowCount = 0, iOutOfBoundsHighCount = 0, iNanCount = 0;
+
+            // Use -1 because the last row/col is for shared data
+            // This way the last steps extend to the next tile
+            float fIncreaseInMeters = (float)Tile.EdgeLength / (iHeightmapResolution - 1);
+
+            for (int x = 0; x < iHeightmapResolution; x++)
+            {
+                for (int y = 0; y < iHeightmapResolution; y++)
+                {
+                    Coordinate c = new(bounds.MinX + x * fIncreaseInMeters,
+                        bounds.MinY + y * fIncreaseInMeters);
+
+                    RcIndex rc = _tile.DemDsm.Bounds.ProjToCell(c);
+
+                    float h = _tile.DemDsm.Dem[rc.Row, rc.Column] + iHeightOffset;
+
+                    if (float.IsNaN(h))
+                    {
+                        fHeights[x, y] = 0;
+                        iNanCount++;
+                        continue;
+                    }
+
+                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(c);
+                    if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
+                    {
+                        // Reduce terrain height inside water areas
+                        h -= _fWaterDepth;
+                    }
+
+                    if (h < 0.0f)
+                    {
+                        fOutOfBoundsLowest = Math.Min(fOutOfBoundsLowest, h);
+                        iOutOfBoundsLowCount++;
+                        h = 0.0f;
+                    }
+                    else if (h > _tile.DemMaxHeight)
+                    {
+                        fOutOfBoundsHighest = Math.Max(fOutOfBoundsHighest, h);
+                        iOutOfBoundsHighCount++;
+                        h = _tile.DemMaxHeight;
+                    }
+
+                    fHeights[y, x] = h / _tile.DemMaxHeight;
+                    //_tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
+                }
+            }
+
+            if (iOutOfBoundsLowCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsLowCount} negative DEM heights. Max was {fOutOfBoundsLowest}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
+
+            if (iOutOfBoundsHighCount > 0)
+            {
+                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
+                    $"iHeightOffset: {iHeightOffset}");
+            }
+
+            if (iNanCount > 0)
+            {
+                Debug.Log($"Dem unavailable on {iNanCount} cells");
+            }
         }
 
         private void AddBuildings()
