@@ -29,14 +29,16 @@ public class IWaterAreasCreator : IWaterAreasBuilder
 
         Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
 
-        using StreamWriter streamWriter = new(Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version)));
+        string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
+        string sOutputTempName = sOutputFilename + ".tmp";
+        using StreamWriter streamWriter = new(sOutputTempName);
 
         foreach (Feature f in features)
         {
             if (tile.Token.IsCancellationRequested)
             {
                 streamWriter.Close();
-                File.Delete(Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version)));
+                File.Delete(sOutputTempName);
                 return waterAreas;
             }
 
@@ -105,6 +107,9 @@ public class IWaterAreasCreator : IWaterAreasBuilder
                 }
             }
         }
+
+        streamWriter.Close();
+        File.Move(sOutputTempName, sOutputFilename);
 
         return waterAreas;
     }

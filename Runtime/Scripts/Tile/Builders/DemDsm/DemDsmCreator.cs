@@ -334,7 +334,7 @@ namespace Kuoste.LidarWorld.Tile
                 // Save grid to filesystem for future use
                 grids[i].Serialize(Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(s1km1kmTilename, tile.Version)));
 
-                grids[i].WriteDemAsAscii(Path.Combine(tile.DirectoryIntermediate, s1km1kmTilename + ".asc"));
+                //grids[i].WriteDemAsAscii(Path.Combine(tile.DirectoryIntermediate, s1km1kmTilename + ".asc"));
 
                 if (tile.Name == s1km1kmTilename)
                 {

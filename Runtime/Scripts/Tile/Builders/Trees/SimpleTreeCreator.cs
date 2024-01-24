@@ -29,8 +29,9 @@ public class SimpleTreeCreator : ITreeBuilder
         if (tile.Token.IsCancellationRequested)
             return trees;
 
-        string sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
-        using StreamWriter streamWriter = new(sFullFilename);
+        string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
+        string sOutputTempName = sOutputFilename + ".tmp";
+        using StreamWriter streamWriter = new(sOutputTempName);
 
         for (int iRow = 0; iRow < tile.DemDsm.Bounds.RowCount; iRow++)
         {
@@ -39,7 +40,7 @@ public class SimpleTreeCreator : ITreeBuilder
                 if (tile.Token.IsCancellationRequested)
                 {
                     streamWriter.Close();
-                    File.Delete(sFullFilename);
+                    File.Delete(sOutputTempName);
                     return trees;
                 }
 
@@ -121,6 +122,9 @@ public class SimpleTreeCreator : ITreeBuilder
         //sw.Stop();
         //Debug.Log($"Tile {_tile.Name}: {_tile.Trees.Count} trees determined in {sw.ElapsedMilliseconds} ms.");
         //sw.Restart();
+
+        streamWriter.Close();
+        File.Move(sOutputTempName, sOutputFilename);
 
         return trees;
     }
