@@ -1,4 +1,5 @@
 using Kuoste.LidarWorld.Tile;
+using LasUtility.Common;
 using LasUtility.Nls;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Geometries;
@@ -33,9 +34,12 @@ public class SimpleTreeCreator : ITreeBuilder
         string sOutputTempName = sOutputFilename + ".tmp";
         using StreamWriter streamWriter = new(sOutputTempName);
 
-        for (int iRow = 0; iRow < tile.DemDsm.Bounds.RowCount; iRow++)
+        RcIndex start = tile.DemDsm.Bounds.ProjToCell(new Coordinate(bounds.MinX, bounds.MinY));
+        RcIndex end = tile.DemDsm.Bounds.ProjToCell(new Coordinate(bounds.MaxX, bounds.MaxY));
+
+        for (int iRow = start.Row; iRow < end.Row; iRow++)
         {
-            for (int jCol = 0; jCol < tile.DemDsm.Bounds.ColumnCount; jCol++)
+            for (int jCol = start.Column; jCol < end.Column; jCol++)
             {
                 if (tile.Token.IsCancellationRequested)
                 {
@@ -77,11 +81,11 @@ public class SimpleTreeCreator : ITreeBuilder
                 {
                     for (int jj = jCol - _iSearchRadiusHighVegetation; jj <= jCol + _iSearchRadiusHighVegetation; jj++)
                     {
-                        if (ii < 0 || ii > tile.DemDsm.Bounds.RowCount - 1 ||
-                            jj < 0 || jj > tile.DemDsm.Bounds.ColumnCount - 1)
-                        {
-                            continue;
-                        }
+                        //if (ii < 0 || ii > tile.DemDsm.Bounds.RowCount - 1 ||
+                        //    jj < 0 || jj > tile.DemDsm.Bounds.ColumnCount - 1)
+                        //{
+                        //    continue;
+                        //}
 
                         List<BinPoint> neighborhoodPoints = tile.DemDsm.GetPoints(ii, jj);
 
