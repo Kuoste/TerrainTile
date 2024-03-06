@@ -3,6 +3,7 @@ using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System;
 using System.Diagnostics;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
@@ -98,20 +99,13 @@ namespace Kuoste.LidarWorld.Tile
             float fOutOfBoundsLowest = 0, fOutOfBoundsHighest = 0;
             int iOutOfBoundsLowCount = 0, iOutOfBoundsHighCount = 0, iNanCount = 0;
 
-            // Use -1 because the last row/col is for shared data
-            // This way the last steps extend to the next tile
-            float fIncreaseInMeters = (float)Tile.EdgeLength / (iHeightmapResolution - 1);
+            RcIndex rcStart = _tile.DemDsm.Bounds.ProjToCell(new Coordinate(bounds.MinX, bounds.MinY));
 
             for (int x = 0; x < iHeightmapResolution; x++)
             {
                 for (int y = 0; y < iHeightmapResolution; y++)
                 {
-                    Coordinate c = new(bounds.MinX + x * fIncreaseInMeters,
-                        bounds.MinY + y * fIncreaseInMeters);
-
-                    RcIndex rc = _tile.DemDsm.Bounds.ProjToCell(c);
-
-                    float h = _tile.DemDsm.Dem[rc.Row, rc.Column] + iHeightOffset;
+                    float h = _tile.DemDsm.Dem[rcStart.Column + x, rcStart.Row + y] + iHeightOffset;
 
                     if (float.IsNaN(h))
                     {
@@ -120,7 +114,7 @@ namespace Kuoste.LidarWorld.Tile
                         continue;
                     }
 
-                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(c);
+                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(x, y);
                     if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                     {
                         // Reduce terrain height inside water areas
@@ -140,8 +134,7 @@ namespace Kuoste.LidarWorld.Tile
                         h = _tile.DemMaxHeight;
                     }
 
-                    fHeights[y, x] = h / _tile.DemMaxHeight;
-                    //_tile.DemDsm.Dem[x, y] = h / _tile.DemMaxHeight;
+                    fHeights[x, y] = h / _tile.DemMaxHeight;
                 }
             }
 
