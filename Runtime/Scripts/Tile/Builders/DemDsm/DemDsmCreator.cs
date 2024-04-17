@@ -12,7 +12,7 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class DemDsmCreator : IDemDsmBuilder
+    public class DemDsmCreator : Builder, IDemDsmBuilder
     {
         /// <summary>
         /// Use some overlap in triangulations or else the triangulations won't be complete on edges
@@ -36,7 +36,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public VoxelGrid Build(Tile tile)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return new();
 
             TileNamer.Decode(tile.Name, out Envelope bounds1km);
@@ -99,7 +99,7 @@ namespace Kuoste.LidarWorld.Tile
 
             while ((p = reader.ReadPoint()) != null)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                     return new();
 
                 //iCount++;
@@ -292,7 +292,7 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                     return new();
 
                 Stopwatch sw2 = Stopwatch.StartNew();
@@ -326,7 +326,7 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                     return new();
 
                 string s1km1kmTilename = s3km3kmTileName + "_" + (i + 1).ToString();

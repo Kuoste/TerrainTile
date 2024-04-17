@@ -6,8 +6,9 @@ using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
-public class SimpleTreeCreator : ITreeBuilder
+public class SimpleTreeCreator : Builder, ITreeBuilder
 {
     const int _iSearchRadiusBuildingsRoads = 3;
     const int _iSearchRadiusHighVegetation = 2;
@@ -27,7 +28,7 @@ public class SimpleTreeCreator : ITreeBuilder
 
         List<Point> trees = new();
 
-        if (tile.Token.IsCancellationRequested)
+        if (CancellationToken.IsCancellationRequested)
             return trees;
 
         string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
@@ -41,7 +42,7 @@ public class SimpleTreeCreator : ITreeBuilder
         {
             for (int jCol = start.Column; jCol < end.Column; jCol++)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                 {
                     streamWriter.Close();
                     File.Delete(sOutputTempName);

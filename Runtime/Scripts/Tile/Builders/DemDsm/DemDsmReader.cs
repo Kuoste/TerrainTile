@@ -6,11 +6,11 @@ using System.Threading;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class DemDsmReader : IDemDsmBuilder
+    public class DemDsmReader : Builder, IDemDsmBuilder
     {
         public VoxelGrid Build(Tile tile)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return new VoxelGrid();
 
             string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Version));

@@ -4,13 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-public class WaterAreasReader : IWaterAreasBuilder
+public class WaterAreasReader : Builder, IWaterAreasBuilder
 {
     public List<Polygon> Build(Tile tile)
     {
         List<Polygon> polygons = new();
 
-        if (tile.Token.IsCancellationRequested)
+        if (CancellationToken.IsCancellationRequested)
             return polygons;
 
         string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
@@ -19,7 +19,7 @@ public class WaterAreasReader : IWaterAreasBuilder
 
         foreach (string sArea in sAreas)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return polygons;
 
             string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);

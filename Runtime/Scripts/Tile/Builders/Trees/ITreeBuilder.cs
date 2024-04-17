@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public interface ITreeBuilder
+    public interface ITreeBuilder : IBuilder
     {
         public static string Filename(string sName, string sVersion) => sName + "_trees_v" + sVersion + ".geojson";
 

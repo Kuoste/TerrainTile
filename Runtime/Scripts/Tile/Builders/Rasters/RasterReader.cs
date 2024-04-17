@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class RasterReader : IRasterBuilder
+    public class RasterReader : Builder, IRasterBuilder
     {
         string _sRasterFilenameSpecifier;
 
@@ -19,7 +19,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public IRaster Build(Tile tile)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return new ByteRaster();
 
             string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Version));

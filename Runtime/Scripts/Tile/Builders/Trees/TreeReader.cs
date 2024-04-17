@@ -10,13 +10,13 @@ using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TreeReader : ITreeBuilder
+    public class TreeReader : Builder, ITreeBuilder
     {
         public List<Point> Build(Tile tile)
         {
             List<Point> trees = new();
 
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return trees;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -26,7 +26,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sTree in sTrees)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                     return trees;
 
                 string[] sCordinates = sTree.Split("[", StringSplitOptions.RemoveEmptyEntries);

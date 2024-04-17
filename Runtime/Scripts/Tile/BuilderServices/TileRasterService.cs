@@ -13,19 +13,20 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileRasterService : ITileBuilderService
+    public class TileRasterService : TileService, ITileBuilderService
     {
         private readonly IRasterBuilder _reader, _creator;
-
-        private readonly ConcurrentQueue<Tile> _tileQueue = new();
 
         private readonly Dictionary<int, byte> _buildingRoadClassesToRasterValues = new();
         private readonly Dictionary<int, byte> _terrainTypeClassesToRasterValues = new();
 
-        public TileRasterService(IRasterBuilder reader, IRasterBuilder creator)
+        public TileRasterService(IRasterBuilder reader, IRasterBuilder creator, CancellationToken token)
         {
             _reader = reader;
             _creator = creator;
+
+            _reader.SetCancellationToken(token);
+            _creator.SetCancellationToken(token);
 
             _buildingRoadClassesToRasterValues.AddRange(TopographicDb.RoadLineClassesToRasterValues);
             _buildingRoadClassesToRasterValues.AddRange(TopographicDb.BuildingPolygonClassesToRasterValues);
@@ -36,17 +37,17 @@ namespace Kuoste.LidarWorld.Tile
             _terrainTypeClassesToRasterValues.AddRange(TopographicDb.SandPolygonClassesToRasterValues);
             _terrainTypeClassesToRasterValues.AddRange(TopographicDb.FieldPolygonClassesToRasterValues);
             _terrainTypeClassesToRasterValues.AddRange(TopographicDb.RockLineClassesToRasterValues);
-        }
 
-        public void AddTile(Tile tile)
-        {
-            _tileQueue.Enqueue(tile);
+            _token = token;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
                     //Stopwatch sw = Stopwatch.StartNew();

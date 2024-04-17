@@ -11,8 +11,6 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class Tile
     {
-        public CancellationToken Token;
-
         /// <summary>
         /// Unity handles heightmap values as coefficients between 0.0 and 1.0. 
         /// This value should be the same as Terrain Height so that heights are scaled correctly.

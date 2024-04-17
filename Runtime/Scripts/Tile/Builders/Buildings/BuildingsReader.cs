@@ -8,13 +8,13 @@ using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class BuildingsReader : IBuildingsBuilder
+    public class BuildingsReader : Builder, IBuildingsBuilder
     {
         public List<Tile.Building> Build(Tile tile)
         {
             List<Tile.Building> buildings = new();
 
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return buildings;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -24,7 +24,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sBuilding in sBuildings)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                     return buildings;
 
                 List<Vector3> buildingVertices = new();

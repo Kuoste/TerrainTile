@@ -10,13 +10,13 @@ using System.IO;
 using Unity.VisualScripting;
 using UnityEngine;
 
-public class IWaterAreasCreator : IWaterAreasBuilder
+public class IWaterAreasCreator : Builder, IWaterAreasBuilder
 {
     public List<Polygon> Build(Tile tile)
     {
         List<Polygon> waterAreas = new();
 
-        if (tile.Token.IsCancellationRequested)
+        if (CancellationToken.IsCancellationRequested)
             return waterAreas;
 
         // Get topographic db tile name
@@ -35,7 +35,7 @@ public class IWaterAreasCreator : IWaterAreasBuilder
 
         foreach (Feature f in features)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
             {
                 streamWriter.Close();
                 File.Delete(sOutputTempName);

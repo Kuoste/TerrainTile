@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class BuildingsCreator : IBuildingsBuilder
+    public class BuildingsCreator : Builder, IBuildingsBuilder
     {
         private const int _iRequiredBuildingHeights = 7;
         private const double _dPercentileForBuildingHeight = 0.8;
@@ -23,7 +23,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public List<Tile.Building> Build(Tile tile)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return new();
 
             // Get topographic db tile name
@@ -44,7 +44,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (Feature f in features)
             {
-                if (tile.Token.IsCancellationRequested)
+                if (CancellationToken.IsCancellationRequested)
                 {
                     streamWriter.Close();
                     File.Delete(sOutputTempName);

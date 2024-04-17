@@ -8,37 +8,44 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileGeometryService : ITileBuilderService
+    public class TileGeometryService : TileService, ITileBuilderService
     {
         private readonly IBuildingsBuilder _buildingsReader, _buildingsCreator;
         private readonly ITreeBuilder _treeReader, _treeCreator;
         private readonly IWaterAreasBuilder _waterAreasReader, _waterAreasCreator;
 
-        private readonly ConcurrentQueue<Tile> _tileQueue = new();
-
         public TileGeometryService(IBuildingsBuilder buildingsReader, IBuildingsBuilder buildingsCreator,
             ITreeBuilder treeReader, ITreeBuilder treeCreator,
-            IWaterAreasBuilder waterAreasReader, IWaterAreasBuilder waterAreasCreator)
+            IWaterAreasBuilder waterAreasReader, IWaterAreasBuilder waterAreasCreator, CancellationToken token)
         {
             _buildingsReader = buildingsReader;
             _buildingsCreator = buildingsCreator;
 
+            _buildingsReader.SetCancellationToken(token);
+            _buildingsCreator.SetCancellationToken(token);
+
             _treeReader = treeReader;
             _treeCreator = treeCreator;
 
+            _treeReader.SetCancellationToken(token);
+            _treeCreator.SetCancellationToken(token);
+
             _waterAreasReader = waterAreasReader;
             _waterAreasCreator = waterAreasCreator;
-        }
 
-        public void AddTile(Tile tile)
-        {
-            _tileQueue.Enqueue(tile);
+            _waterAreasReader.SetCancellationToken(token);
+            _waterAreasCreator.SetCancellationToken(token);
+
+            _token = token;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 if (_tileQueue.TryPeek(out Tile tile))
                 {
                     // Geometries require that other components are ready

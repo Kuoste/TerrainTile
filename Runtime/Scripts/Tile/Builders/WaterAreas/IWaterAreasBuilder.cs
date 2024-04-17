@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public interface IWaterAreasBuilder
+    public interface IWaterAreasBuilder : IBuilder
     {
         public static string Filename(string sName, string sVersion) => sName + "_waterareas_v" + sVersion + ".geojson";
 

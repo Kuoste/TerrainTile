@@ -11,28 +11,29 @@ using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class TileDsmPointCloudService : ITileBuilderService
+    public class TileDsmPointCloudService : TileService, ITileBuilderService
     {
         private readonly IDemDsmBuilder _reader;
         private readonly IDemDsmBuilder _creator;
 
-        private readonly ConcurrentQueue<Tile> _tileQueue = new();
-
-        public TileDsmPointCloudService(IDemDsmBuilder reader, IDemDsmBuilder creator)
+        public TileDsmPointCloudService(IDemDsmBuilder reader, IDemDsmBuilder creator, CancellationToken token)
         {
             _reader = reader;
             _creator = creator;
-        }
 
-        public void AddTile(Tile tile)
-        {
-            _tileQueue.Enqueue(tile);
+            _reader.SetCancellationToken(token);
+            _creator.SetCancellationToken(token);
+
+            _token = token;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
+                if (_token.IsCancellationRequested)
+                    return;
+
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
                 {
                     Stopwatch sw = Stopwatch.StartNew();

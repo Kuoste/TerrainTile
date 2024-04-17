@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public interface IRasterBuilder
+    public interface IRasterBuilder : IBuilder
     {
         public static string Filename(string sTileName, string sSpecifier, string sVersion) => sTileName + "_" + sSpecifier + "_v" + sVersion + ".asp";
 

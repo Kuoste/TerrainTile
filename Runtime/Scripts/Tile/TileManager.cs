@@ -49,12 +49,13 @@ public class TileManager : MonoBehaviour
         Stopwatch sw = Stopwatch.StartNew();
 
         _cancellationTokenSource = new CancellationTokenSource();
+        CancellationToken token = _cancellationTokenSource.Token;
 
-        ITileBuilderService DsmPointCloudService = new TileDsmPointCloudService(new DemDsmReader(), new DemDsmCreator());
-        ITileBuilderService RasterService = new TileRasterService(new RasterReader(), new RasterCreator());
+        ITileBuilderService DsmPointCloudService = new TileDsmPointCloudService(new DemDsmReader(), new DemDsmCreator(), token);
+        ITileBuilderService RasterService = new TileRasterService(new RasterReader(), new RasterCreator(), token);
         ITileBuilderService GeometryService = new TileGeometryService(new BuildingsReader(), new BuildingsCreator(),
             new TreeReader(),  new SimpleTreeCreator(),
-            new WaterAreasReader(), new IWaterAreasCreator());
+            new WaterAreasReader(), new IWaterAreasCreator(), token);
 
         _dsmPointCloudThread = new(() => DsmPointCloudService.BuilderThread());
         _rasterThread = new(() => RasterService.BuilderThread());
@@ -86,7 +87,6 @@ public class TileManager : MonoBehaviour
                     DemMaxHeight = (int)terrainData.heightmapScale.y,
                     AlphamapResolution = terrainData.alphamapResolution,
                     //HeightMapResolution = terrainData.heightmapResolution,
-                    Token = _cancellationTokenSource.Token,
                     DirectoryIntermediate = _sDirectoryIntermediate,
                     DirectoryOriginal = _sDirectoryOriginal,
                 };
@@ -104,11 +104,6 @@ public class TileManager : MonoBehaviour
     {
         // Send cancellation signal to threads for manual exit
         _cancellationTokenSource.Cancel();
-
-        // Interrupt threads in Thread.Sleep()
-        _dsmPointCloudThread.Interrupt();
-        _rasterThread.Interrupt();
-        _geometryThread.Interrupt();
 
         // Wait for threads to exit
         _dsmPointCloudThread.Join();

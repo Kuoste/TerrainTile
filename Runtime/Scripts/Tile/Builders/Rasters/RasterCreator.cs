@@ -12,7 +12,7 @@ using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
 {
-    public class RasterCreator : IRasterBuilder
+    public class RasterCreator : Builder, IRasterBuilder
     {
         private string _sRasterFilenameSpecifier;
         private string[] _sShpFilenames;
@@ -26,7 +26,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public IRaster Build(Tile tile)
         {
-            if (tile.Token.IsCancellationRequested)
+            if (CancellationToken.IsCancellationRequested)
                 return new ByteRaster();
 
             // Get topographic db tile name
@@ -47,7 +47,7 @@ namespace Kuoste.LidarWorld.Tile
             Stopwatch sw = Stopwatch.StartNew();
 
             RasteriserEvenOdd rasteriser = new();
-            rasteriser.SetCancellationToken(tile.Token);
+            rasteriser.SetCancellationToken(CancellationToken);
 
             Envelope rasterBounds = new(bounds12km);
             foreach (string sFilename in _sShpFilenames)
@@ -70,7 +70,7 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
                 {
-                    if (tile.Token.IsCancellationRequested)
+                    if (CancellationToken.IsCancellationRequested)
                         return new ByteRaster();
 
                     // Save to filesystem
