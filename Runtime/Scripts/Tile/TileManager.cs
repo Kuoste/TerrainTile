@@ -38,6 +38,11 @@ public class TileManager : MonoBehaviour
 
     private CancellationTokenSource _cancellationTokenSource;
 
+    public int GetTilesInProcessCount()
+    {
+        return _terrainTilesInProcess.Count;
+    }
+
     private void Awake()
     {
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
