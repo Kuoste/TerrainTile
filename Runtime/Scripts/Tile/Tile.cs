@@ -31,6 +31,8 @@ namespace Kuoste.LidarWorld.Tile
         public string DirectoryIntermediate;
         public string DirectoryOriginal;
 
+        public GameObject WaterPlane;
+
         public VoxelGrid DemDsm;
         public IRaster BuildingsRoads;
         public IRaster TerrainType;

@@ -13,22 +13,26 @@ using System.IO;
 
 public class TileManager : MonoBehaviour
 {
-    public GameObject _TerrainTemplate;
-    public string _sStartTileName;
+    public GameObject TerrainTemplate;
+    public GameObject WaterPlane;
+    public Material BuildingRoof;
+    public Material BuildingWall;
 
-    private Thread _dsmPointCloudThread;
-    private Thread _rasterThread;
-    private Thread _geometryThread;
+    public string RenderedArea;
 
     /// <summary>
     /// Folder where data from Nls is found
     /// </summary>
-    public string _sDirectoryOriginal;
+    public string DataDirectoryOriginal;
 
     /// <summary>
     ///  Folder for saving the rasterised / triangulated data
     /// </summary>
-    public string _sDirectoryIntermediate;
+    public string DataDirectoryIntermediate;
+
+    private Thread _dsmPointCloudThread;
+    private Thread _rasterThread;
+    private Thread _geometryThread;
 
     private readonly string _sVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -49,8 +53,18 @@ public class TileManager : MonoBehaviour
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-        Directory.CreateDirectory(_sDirectoryIntermediate);
+        Directory.CreateDirectory(DataDirectoryIntermediate);
 
+        //string path = Directory.GetParent(UnityEngine.Application.dataPath).FullName;
+
+        //Path.IsPathFullyQualified(path);
+
+        ////Path.Combine()
+
+        //DataDirectoryOriginal = Path.Combine(path, DataDirectoryOriginal);
+        //DataDirectoryIntermediate = Path.Combine(path, DataDirectoryIntermediate);
+
+        //Debug.Log(DataDirectoryOriginal);
         Stopwatch sw = Stopwatch.StartNew();
 
         _cancellationTokenSource = new CancellationTokenSource();
@@ -74,10 +88,10 @@ public class TileManager : MonoBehaviour
         Debug.Log("Initializing threading took " + sw.ElapsedMilliseconds + " ms");
         sw.Restart();
 
-        TileNamer.Decode(_sStartTileName, out Envelope bounds);
+        TileNamer.Decode(RenderedArea, out Envelope bounds);
         _origo = new Coordinate(bounds.Centre.X, bounds.Centre.Y);
 
-        TerrainData terrainData = _TerrainTemplate.GetComponent<Terrain>().terrainData;
+        TerrainData terrainData = TerrainTemplate.GetComponent<Terrain>().terrainData;
 
         for (int x = (int)bounds.MinX; x < bounds.MaxX; x += Tile.EdgeLength)
         {
@@ -92,8 +106,9 @@ public class TileManager : MonoBehaviour
                     DemMaxHeight = (int)terrainData.heightmapScale.y,
                     AlphamapResolution = terrainData.alphamapResolution,
                     //HeightMapResolution = terrainData.heightmapResolution,
-                    DirectoryIntermediate = _sDirectoryIntermediate,
-                    DirectoryOriginal = _sDirectoryOriginal,
+                    DirectoryIntermediate = DataDirectoryIntermediate,
+                    DirectoryOriginal = DataDirectoryOriginal,
+                    WaterPlane = WaterPlane
                 };
 
                 DsmPointCloudService.AddTile(t);
@@ -131,7 +146,7 @@ public class TileManager : MonoBehaviour
 
                 TileNamer.Decode(tile.Name, out Envelope bounds);
                 Vector3 pos = new((float)(bounds.MinX - _origo.X), 0, (float)(bounds.MinY - _origo.Y));
-                GameObject terrain = Instantiate(_TerrainTemplate, pos, Quaternion.identity, transform);
+                GameObject terrain = Instantiate(TerrainTemplate, pos, Quaternion.identity, transform);
                 terrain.name = tile.Name;
 
                 // Create and assign a deep copy of the terrain data

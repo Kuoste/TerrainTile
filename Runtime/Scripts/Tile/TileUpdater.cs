@@ -68,7 +68,7 @@ namespace Kuoste.LidarWorld.Tile
 
             float[,] fHeights = new float[terrainData.heightmapResolution, terrainData.heightmapResolution];
 
-            ScaleAndReprojectDem(bounds, terrainData.heightmapResolution, fHeights);
+            SetHeights(bounds, terrainData.heightmapResolution, fHeights);
 
             terrainData.SetHeights(0, 0, fHeights);
 
@@ -94,7 +94,7 @@ namespace Kuoste.LidarWorld.Tile
             Destroy(this);
         }
 
-        private void ScaleAndReprojectDem(Envelope bounds, int iHeightmapResolution, float[,] fHeights)
+        private void SetHeights(Envelope bounds, int iHeightmapResolution, float[,] fHeights)
         {
             float fOutOfBoundsLowest = 0, fOutOfBoundsHighest = 0;
             int iOutOfBoundsLowCount = 0, iOutOfBoundsHighCount = 0, iNanCount = 0;
@@ -114,7 +114,11 @@ namespace Kuoste.LidarWorld.Tile
                         continue;
                     }
 
-                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(x, y);
+                    // iHeightMapResolution is one cell bigger that TerrainType (alphamap) resolution,
+                    // because the heights need to connect to the next tile. Extend the last values terrain type values to cover the whole tile
+                    int tx = x < _tile.AlphamapResolution ? x : _tile.AlphamapResolution - 1;
+                    int ty = y < _tile.AlphamapResolution ? y : _tile.AlphamapResolution - 1;
+                    byte bTerrainType = (byte)_tile.TerrainType.GetValue(tx, ty);
                     if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                     {
                         // Reduce terrain height inside water areas
@@ -298,7 +302,8 @@ namespace Kuoste.LidarWorld.Tile
         {
             TileNamer.Decode(_tile.Name, out Envelope bounds);
 
-            GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
+            //GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
+            GameObject goPlane = _tile.WaterPlane;
 
             Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
             float fGoPlaneMeshWidth = goPlaneBounds.size.x;

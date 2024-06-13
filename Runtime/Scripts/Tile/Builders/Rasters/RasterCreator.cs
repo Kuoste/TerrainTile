@@ -50,11 +50,6 @@ namespace Kuoste.LidarWorld.Tile
             rasteriser.SetCancellationToken(CancellationToken);
 
             Envelope rasterBounds = new(bounds12km);
-            foreach (string sFilename in _sShpFilenames)
-            {
-                using ShapefileReader reader = Shapefile.OpenRead(Path.Combine(tile.DirectoryOriginal, sFilename));
-                rasterBounds.ExpandToInclude(reader.BoundingBox);
-            }
 
             int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * tile.AlphamapResolution;
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, rasterBounds);
