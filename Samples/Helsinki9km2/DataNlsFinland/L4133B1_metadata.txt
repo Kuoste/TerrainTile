@@ -1,0 +1,15 @@
+Koordinaatisto: etrs-tm35fin 
+Keilauspäivämäärä: 07.06.2020 
+Korkeustarkkuus (m): 0.10 m 
+Korkeusjärjestelmä: N2000 
+Lentokorkeus (m): 953 m 
+Tiedostomuoto: LAZ 
+Päivitetty: 2020-09-29T05:54:02.011544Z 
+Karttalehtitunnus: L4133B1 
+Multipulse: Rajoittamaton 
+Pistepilvitunnus: laser/automaattinen/2020/20200201_MGGP_Helsinki_kesa/Harvennettu/L4133B1 
+Pistetiheys (pistettä / m²): 0.5 pistetta/m2 
+Projekti(t): 20200201_MGGP_Helsinki_kesa_harvennettu 
+Keilain: RIEGL, VQ780i 
+Aikaikkuna: C 
+Keilausvuosi: 2020 
