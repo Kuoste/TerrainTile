@@ -1,6 +1,6 @@
 # fi.kuoste.terraintile
 
-Welcome to the `fi.kuoste.terraintile` repository! This Unity package is designed for creating realistic landscapes from point clouds and GIS data. It's perfect for game developers, simulation creators, and anyone interested in generating natural terrain environments.
+Welcome to the `fi.kuoste.terraintile` repository! This Unity package is designed for creating realistic landscapes from NLS Finland point clouds and GIS data. It's perfect for game developers, simulation creators, and anyone interested in generating natural terrain environments.
 
 [![Dynamic Landscapes in Unity Based on Real-World Data](https://img.youtube.com/vi/BIO6dNtQVlw/0.jpg)](https://www.youtube.com/watch?v=BIO6dNtQVlw)
 
