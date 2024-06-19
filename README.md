@@ -13,3 +13,14 @@ Welcome to the `fi.kuoste.terraintile` repository! This Unity package is designe
 ## Getting Started
 
 To get started with `fi.kuoste.terraintile`, clone this repository and import the package into your Unity project. Follow the instructions in the `Samples` folder to learn how to integrate point clouds and GIS data into your terrain.
+
+## License
+Copyright (c) 2024 Kuoste
+
+Software may not be used for any commercial purpose. Please contact for a commercial license.
+
+The software is provided "as is", without warranty of any kind.
+
+Modification of the software is permitted. Credit original author. Modified software may not be used commercially.
+
+Vellu Sorvari [LinkedIn](https://www.linkedin.com/in/vellusorvari/)
