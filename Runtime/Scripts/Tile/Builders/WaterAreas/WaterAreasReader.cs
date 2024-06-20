@@ -13,7 +13,7 @@ public class WaterAreasReader : Builder, IWaterAreasBuilder
         if (CancellationToken.IsCancellationRequested)
             return polygons;
 
-        string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
+        string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
 
         string[] sAreas = File.ReadAllText(sFullFilename).Split("Polygon");
 

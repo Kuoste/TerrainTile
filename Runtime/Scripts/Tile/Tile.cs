@@ -11,27 +11,8 @@ namespace Kuoste.LidarWorld.Tile
 {
     public class Tile
     {
-        /// <summary>
-        /// Unity handles heightmap values as coefficients between 0.0 and 1.0. 
-        /// This value should be the same as Terrain Height so that heights are scaled correctly.
-        /// </summary>
-        public int DemMaxHeight;
-
-        public int AlphamapResolution;
-        //public int HeightMapResolution;
-
-        /// <summary>
-        /// Tile edge length in meters
-        /// </summary>
-        public const int EdgeLength = 1000;
-
-        public string Version;
         public string Name;
-
-        public string DirectoryIntermediate;
-        public string DirectoryOriginal;
-
-        public GameObject WaterPlane;
+        public TileCommon Common;
 
         public VoxelGrid DemDsm;
         public IRaster BuildingsRoads;

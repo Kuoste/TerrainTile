@@ -53,18 +53,6 @@ public class TileManager : MonoBehaviour
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
-        Directory.CreateDirectory(DataDirectoryIntermediate);
-
-        //string path = Directory.GetParent(UnityEngine.Application.dataPath).FullName;
-
-        //Path.IsPathFullyQualified(path);
-
-        ////Path.Combine()
-
-        //DataDirectoryOriginal = Path.Combine(path, DataDirectoryOriginal);
-        //DataDirectoryIntermediate = Path.Combine(path, DataDirectoryIntermediate);
-
-        //Debug.Log(DataDirectoryOriginal);
         Stopwatch sw = Stopwatch.StartNew();
 
         _cancellationTokenSource = new CancellationTokenSource();
@@ -92,23 +80,20 @@ public class TileManager : MonoBehaviour
         _origo = new Coordinate(bounds.Centre.X, bounds.Centre.Y);
 
         TerrainData terrainData = TerrainTemplate.GetComponent<Terrain>().terrainData;
+        TileCommon common = new((int)terrainData.heightmapScale.y, terrainData.alphamapResolution,
+            Path.GetFullPath(DataDirectoryIntermediate), Path.GetFullPath(DataDirectoryOriginal),
+            _sVersion, WaterPlane);
 
-        for (int x = (int)bounds.MinX; x < bounds.MaxX; x += Tile.EdgeLength)
+        for (int x = (int)bounds.MinX; x < bounds.MaxX; x += TileCommon.EdgeLength)
         {
-            for (int y = (int)bounds.MinY;  y < bounds.MaxY; y += Tile.EdgeLength)
+            for (int y = (int)bounds.MinY;  y < bounds.MaxY; y += TileCommon.EdgeLength)
             {
-                string sTileName = TileNamer.Encode(x, y, Tile.EdgeLength);
+                string sTileName = TileNamer.Encode(x, y, TileCommon.EdgeLength);
 
                 Tile t = new()
                 {
                     Name = sTileName,
-                    Version = _sVersion,
-                    DemMaxHeight = (int)terrainData.heightmapScale.y,
-                    AlphamapResolution = terrainData.alphamapResolution,
-                    //HeightMapResolution = terrainData.heightmapResolution,
-                    DirectoryIntermediate = DataDirectoryIntermediate,
-                    DirectoryOriginal = DataDirectoryOriginal,
-                    WaterPlane = WaterPlane
+                    Common = common,
                 };
 
                 DsmPointCloudService.AddTile(t);

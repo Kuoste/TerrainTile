@@ -30,11 +30,11 @@ namespace Kuoste.LidarWorld.Tile
             TileNamer.Decode(tile.Name, out Envelope bounds);
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
 
-            string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version));
+            string sOutputFilename = Path.Combine(tile.Common.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Common.Version));
             string sOutputTempName = sOutputFilename + ".tmp";
             using StreamWriter streamWriter = new(sOutputTempName);
 
-            string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+            string sFullFilename = Path.Combine(tile.Common.DirectoryOriginal, TopographicDb.sPrefixForBuildings + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
             Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
 
             GeometryFactory factory = new();

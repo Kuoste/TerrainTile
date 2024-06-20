@@ -38,7 +38,7 @@ namespace Kuoste.LidarWorld.Tile
                 {
                     Stopwatch sw = Stopwatch.StartNew();
 
-                    string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Version));
+                    string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Common.Version));
 
                     if (File.Exists(sFullFilename))
                     {

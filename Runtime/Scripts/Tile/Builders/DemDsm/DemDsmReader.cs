@@ -13,7 +13,7 @@ namespace Kuoste.LidarWorld.Tile
             if (CancellationToken.IsCancellationRequested)
                 return new VoxelGrid();
 
-            string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Version));
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Common.Version));
 
             VoxelGrid grid = VoxelGrid.Deserialize(sFullFilename);
 

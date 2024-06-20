@@ -22,7 +22,7 @@ namespace Kuoste.LidarWorld.Tile
             if (CancellationToken.IsCancellationRequested)
                 return new ByteRaster();
 
-            string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Version));
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Common.Version));
 
             return ByteRaster.CreateFromAscii(sFullFilename);
         }

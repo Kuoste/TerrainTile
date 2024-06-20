@@ -18,7 +18,7 @@ namespace Kuoste.LidarWorld.Tile
                 return buildings;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
-            string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version));
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Common.Version));
 
             string[] sBuildings = File.ReadAllText(sFullFilename).Split("GeometryCollection");
 

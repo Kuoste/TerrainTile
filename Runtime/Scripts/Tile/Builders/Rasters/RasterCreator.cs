@@ -34,7 +34,7 @@ namespace Kuoste.LidarWorld.Tile
             string s12km12kmMapTileName = TileNamer.Encode((int)bounds.MinX, (int)bounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
             TileNamer.Decode(s12km12kmMapTileName, out Envelope bounds12km);
 
-            string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Version));
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Common.Version));
 
             // Check if the tile is already being processed and add it to the dictionary if not.
             if (true == File.Exists(sFullFilename))
@@ -51,28 +51,28 @@ namespace Kuoste.LidarWorld.Tile
 
             Envelope rasterBounds = new(bounds12km);
 
-            int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / Tile.EdgeLength * tile.AlphamapResolution;
+            int iRowAndColCount = TopographicDb.iMapTileEdgeLengthInMeters / TileCommon.EdgeLength * tile.Common.AlphamapResolution;
             rasteriser.InitializeRaster(iRowAndColCount, iRowAndColCount, rasterBounds);
 
             rasteriser.AddRasterizedClassesWithRasterValues(_nlsClassesToRasterValues);
 
             foreach (string sFilename in _sShpFilenames)
             {
-                rasteriser.RasteriseShapefile(Path.Combine(tile.DirectoryOriginal, sFilename));
+                rasteriser.RasteriseShapefile(Path.Combine(tile.Common.DirectoryOriginal, sFilename));
             }
 
-            for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += Tile.EdgeLength)
+            for (int x = (int)bounds12km.MinX; x < (int)bounds12km.MaxX; x += TileCommon.EdgeLength)
             {
-                for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += Tile.EdgeLength)
+                for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += TileCommon.EdgeLength)
                 {
                     if (CancellationToken.IsCancellationRequested)
                         return new ByteRaster();
 
                     // Save to filesystem
-                    string sTileName = TileNamer.Encode(x, y, Tile.EdgeLength);
+                    string sTileName = TileNamer.Encode(x, y, TileCommon.EdgeLength);
                     rasteriser.WriteAsAscii(
-                        Path.Combine(tile.DirectoryIntermediate, IRasterBuilder.Filename(sTileName, _sRasterFilenameSpecifier, tile.Version)),
-                        x, y, x + Tile.EdgeLength, y + Tile.EdgeLength);
+                        Path.Combine(tile.Common.DirectoryIntermediate, IRasterBuilder.Filename(sTileName, _sRasterFilenameSpecifier, tile.Common.Version)),
+                        x, y, x + TileCommon.EdgeLength, y + TileCommon.EdgeLength);
                 }
             }
 
@@ -81,7 +81,7 @@ namespace Kuoste.LidarWorld.Tile
             Debug.Log($"Rasterising {_sRasterFilenameSpecifier} for 12x12 km2 tile {s12km12kmMapTileName} took {sw.Elapsed.TotalSeconds} s.");
 
             return rasteriser.Crop((int)bounds.MinX, (int)bounds.MinY,
-                (int)bounds.MinX + Tile.EdgeLength, (int)bounds.MinY + Tile.EdgeLength);
+                (int)bounds.MinX + TileCommon.EdgeLength, (int)bounds.MinY + TileCommon.EdgeLength);
         }
 
         public void SetShpFilenames(string[] inputFilenames)

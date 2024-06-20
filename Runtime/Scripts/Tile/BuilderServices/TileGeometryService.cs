@@ -56,7 +56,7 @@ namespace Kuoste.LidarWorld.Tile
                         Stopwatch swCreate = new();
                         Stopwatch swRead = new();
 
-                        string sFullFilename = Path.Combine(tile.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Version));
+                        string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IBuildingsBuilder.Filename(tile.Name, tile.Common.Version));
                         if (!File.Exists(sFullFilename))
                         {
                             // Create from shapefiles and DSM
@@ -72,7 +72,7 @@ namespace Kuoste.LidarWorld.Tile
                             swRead.Stop();
                         }
 
-                        sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
+                        sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Common.Version));
                         if (!File.Exists(sFullFilename))
                         {
                             // Create from DSM
@@ -88,7 +88,7 @@ namespace Kuoste.LidarWorld.Tile
                             swRead.Stop();
                         }
 
-                        sFullFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
+                        sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
                         if (!File.Exists(sFullFilename))
                         {
                             // Create from shapefiles
