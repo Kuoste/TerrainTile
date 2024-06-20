@@ -20,7 +20,7 @@ namespace Kuoste.LidarWorld.Tile
                 return trees;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
-            string sFullFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Common.Version));
 
             string[] sTrees = File.ReadAllText(sFullFilename).Split("Point");
 
@@ -42,8 +42,8 @@ namespace Kuoste.LidarWorld.Tile
                     coords[2] = coords[2][..coords[2].IndexOf(']')];
 
                     trees.Add(new(
-                        (double.Parse(coords[0]) - bounds.MinX) / Tile.EdgeLength,
-                        (double.Parse(coords[1]) - bounds.MinY) / Tile.EdgeLength,
+                        (double.Parse(coords[0]) - bounds.MinX) / TileCommon.EdgeLength,
+                        (double.Parse(coords[1]) - bounds.MinY) / TileCommon.EdgeLength,
                         double.Parse(coords[2])));
                 }
             }

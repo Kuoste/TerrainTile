@@ -116,8 +116,8 @@ namespace Kuoste.LidarWorld.Tile
 
                     // iHeightMapResolution is one cell bigger that TerrainType (alphamap) resolution,
                     // because the heights need to connect to the next tile. Extend the last values terrain type values to cover the whole tile
-                    int tx = x < _tile.AlphamapResolution ? x : _tile.AlphamapResolution - 1;
-                    int ty = y < _tile.AlphamapResolution ? y : _tile.AlphamapResolution - 1;
+                    int tx = x < _tile.Common.AlphamapResolution ? x : _tile.Common.AlphamapResolution - 1;
+                    int ty = y < _tile.Common.AlphamapResolution ? y : _tile.Common.AlphamapResolution - 1;
                     byte bTerrainType = (byte)_tile.TerrainType.GetValue(tx, ty);
                     if (TopographicDb.WaterPolygonClassesToRasterValues.ContainsValue(bTerrainType))
                     {
@@ -131,14 +131,14 @@ namespace Kuoste.LidarWorld.Tile
                         iOutOfBoundsLowCount++;
                         h = 0.0f;
                     }
-                    else if (h > _tile.DemMaxHeight)
+                    else if (h > _tile.Common.DemMaxHeight)
                     {
                         fOutOfBoundsHighest = Math.Max(fOutOfBoundsHighest, h);
                         iOutOfBoundsHighCount++;
-                        h = _tile.DemMaxHeight;
+                        h = _tile.Common.DemMaxHeight;
                     }
 
-                    fHeights[x, y] = h / _tile.DemMaxHeight;
+                    fHeights[x, y] = h / _tile.Common.DemMaxHeight;
                 }
             }
 
@@ -150,7 +150,7 @@ namespace Kuoste.LidarWorld.Tile
 
             if (iOutOfBoundsHighCount > 0)
             {
-                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
+                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.Common.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
                     $"iHeightOffset: {iHeightOffset}");
             }
 
@@ -303,7 +303,7 @@ namespace Kuoste.LidarWorld.Tile
             TileNamer.Decode(_tile.Name, out Envelope bounds);
 
             //GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
-            GameObject goPlane = _tile.WaterPlane;
+            GameObject goPlane = _tile.Common.WaterPlane;
 
             Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
             float fGoPlaneMeshWidth = goPlaneBounds.size.x;

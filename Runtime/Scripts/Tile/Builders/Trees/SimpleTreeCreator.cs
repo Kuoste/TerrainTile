@@ -31,7 +31,7 @@ public class SimpleTreeCreator : Builder, ITreeBuilder
         if (CancellationToken.IsCancellationRequested)
             return trees;
 
-        string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Version));
+        string sOutputFilename = Path.Combine(tile.Common.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Common.Version));
         string sOutputTempName = sOutputFilename + ".tmp";
         using StreamWriter streamWriter = new(sOutputTempName);
 
@@ -119,7 +119,7 @@ public class SimpleTreeCreator : Builder, ITreeBuilder
                     streamWriter.Write($"[{(int)x},{(int)y},{(int)fNearbyMaxHeights}]");
                     streamWriter.WriteLine("}");
 
-                    trees.Add(new(((int)x - bounds.MinX) / Tile.EdgeLength, ((int)y - bounds.MinY) / Tile.EdgeLength, (int)fNearbyMaxHeights));
+                    trees.Add(new(((int)x - bounds.MinX) / TileCommon.EdgeLength, ((int)y - bounds.MinY) / TileCommon.EdgeLength, (int)fNearbyMaxHeights));
                 }
             }
         }

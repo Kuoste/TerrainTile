@@ -58,8 +58,8 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Process terrain type raster
 
-                    string sFilename = IRasterBuilder.Filename(tile.Name, IRasterBuilder.SpecifierTerrainType, tile.Version);
-                    string sFullFilename = Path.Combine(tile.DirectoryIntermediate, sFilename);
+                    string sFilename = IRasterBuilder.Filename(tile.Name, IRasterBuilder.SpecifierTerrainType, tile.Common.Version);
+                    string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, sFilename);
 
                     if (File.Exists(sFullFilename))
                     {
@@ -79,8 +79,8 @@ namespace Kuoste.LidarWorld.Tile
 
                     // Process buildings & roads raster
 
-                    sFilename = IRasterBuilder.Filename(tile.Name, IRasterBuilder.SpecifierBuildingsRoads, tile.Version);
-                    sFullFilename = Path.Combine(tile.DirectoryIntermediate, sFilename);
+                    sFilename = IRasterBuilder.Filename(tile.Name, IRasterBuilder.SpecifierBuildingsRoads, tile.Common.Version);
+                    sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, sFilename);
 
                     if (File.Exists(sFullFilename))
                     {

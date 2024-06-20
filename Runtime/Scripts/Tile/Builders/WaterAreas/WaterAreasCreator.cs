@@ -25,11 +25,11 @@ public class IWaterAreasCreator : Builder, IWaterAreasBuilder
         Geometry bounds = factory.ToGeometry(envBounds);
         string s12km12kmMapTileName = TileNamer.Encode((int)envBounds.MinX, (int)envBounds.MinY, TopographicDb.iMapTileEdgeLengthInMeters);
 
-        string sFullFilename = Path.Combine(tile.DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
+        string sFullFilename = Path.Combine(tile.Common.DirectoryOriginal, TopographicDb.sPrefixForTerrainType + s12km12kmMapTileName + TopographicDb.sPostfixForPolygon + ".shp");
 
         Feature[] features = Shapefile.ReadAllFeatures(sFullFilename);
 
-        string sOutputFilename = Path.Combine(tile.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Version));
+        string sOutputFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
         string sOutputTempName = sOutputFilename + ".tmp";
         using StreamWriter streamWriter = new(sOutputTempName);
 
