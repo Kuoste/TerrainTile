@@ -62,7 +62,7 @@ namespace Kuoste.LidarWorld.Tile
 
             _3kmDemDsmDone.TryAdd(s3km3kmTileName, false);
 
-            ILasFileReader reader = new LasZipFileReader();
+            ILasFileReader reader = new LasZipNetReader();
 
             string sFilename = Path.Combine(tile.DirectoryOriginal, s3km3kmTileName + ".laz");
 
@@ -71,8 +71,6 @@ namespace Kuoste.LidarWorld.Tile
             Stopwatch sw = Stopwatch.StartNew();
 
             reader.OpenReader(sFilename);
-
-            LasPoint p;
 
             int iSubmeshesPerEdge = (int)Math.Round((reader.MaxX - reader.MinX) / Tile.EdgeLength);
             int iSubmeshCount = (int)Math.Pow(iSubmeshesPerEdge, 2);
@@ -97,7 +95,7 @@ namespace Kuoste.LidarWorld.Tile
 
             //int iCount = 0;
 
-            while ((p = reader.ReadPoint()) != null)
+            foreach (LasPoint p in reader.Points())
             {
                 if (CancellationToken.IsCancellationRequested)
                     return new();
