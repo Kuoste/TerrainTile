@@ -22,14 +22,20 @@ public class TileCommon
     public string Version { get; }
 
     public GameObject WaterPlane { get; }
+    public Material BuildingWall { get; }
+    public Material BuildingRoof { get; }
 
-    public TileCommon(int demMaxHeight, int alphamapResolution, string directoryIntermediate, string directoryOriginal, string version, GameObject waterPlane)
+    public TileCommon(int demMaxHeight, int alphamapResolution, string directoryIntermediate, string directoryOriginal, 
+        string version, GameObject waterPlane, Material buildingWall, Material buildingRoof)
     {
         DemMaxHeight = demMaxHeight;
         AlphamapResolution = alphamapResolution;
         DirectoryIntermediate = directoryIntermediate;
         DirectoryOriginal = directoryOriginal;
         Version = version;
+
         WaterPlane = waterPlane;
+        BuildingWall = buildingWall;
+        BuildingRoof = buildingRoof;
     }
 }

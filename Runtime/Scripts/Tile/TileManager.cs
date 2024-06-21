@@ -82,7 +82,7 @@ public class TileManager : MonoBehaviour
         TerrainData terrainData = TerrainTemplate.GetComponent<Terrain>().terrainData;
         TileCommon common = new((int)terrainData.heightmapScale.y, terrainData.alphamapResolution,
             Path.GetFullPath(DataDirectoryIntermediate), Path.GetFullPath(DataDirectoryOriginal),
-            _sVersion, WaterPlane);
+            _sVersion, WaterPlane, BuildingWall, BuildingRoof);
 
         for (int x = (int)bounds.MinX; x < bounds.MaxX; x += TileCommon.EdgeLength)
         {
