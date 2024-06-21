@@ -178,8 +178,8 @@ namespace Kuoste.LidarWorld.Tile
                 go.AddComponent<MeshFilter>().mesh = mesh;
                 go.AddComponent<MeshRenderer>().materials = new Material[]
                 {
-                    Resources.Load<Material>("Materials/BuildingRoof_Mat"),
-                    Resources.Load<Material>("Materials/BuildingWall_Mat")
+                    _tile.Common.BuildingRoof,
+                    _tile.Common.BuildingWall
                 };
 
                 mesh.RecalculateNormals();

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6783805934860728868}
-  - component: {fileID: 2834716766793211644}
+  - component: {fileID: 6546275430178186219}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -32,7 +32,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2834716766793211644
+--- !u!114 &6546275430178186219
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -44,8 +44,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a265e155da42f24482c69011af6de5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _TerrainTemplate: {fileID: 307471118787096092, guid: bab2695cf26707d4e9db40b4a2901633, type: 3}
-  _WaterPlane: {fileID: 444204679713869707, guid: 165f0afca44287b4abd4549d2b7e9107, type: 3}
-  _sStartTileName: L4133B2
-  _sDirectoryOriginal: D:\data\orig\Maanmittauslaitos\L4133L_Helsinki
-  _sDirectoryIntermediate: D:\data\intermed\terrainpackage\L4133L_Helsinki
+  TerrainTemplate: {fileID: 4260413246029626971, guid: d5c0a38fc3c035a4fae5acb45c9485c9, type: 3}
+  WaterPlane: {fileID: 444204679713869707, guid: 165f0afca44287b4abd4549d2b7e9107, type: 3}
+  BuildingRoof: {fileID: 2100000, guid: 6d1e7e068e5fb674ebf6dbf719e858b2, type: 2}
+  BuildingWall: {fileID: 2100000, guid: 21562dd696d949f4ab3486602ca20db7, type: 2}
+  RenderedArea: L4133B1
+  DataDirectoryOriginal: Packages\fi.kuoste.terraintile\Samples\Helsinki9km2\DataNlsFinland
+  DataDirectoryIntermediate: Packages\fi.kuoste.terraintile\Samples\Helsinki9km2\DataProcessed
