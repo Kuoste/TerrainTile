@@ -55,6 +55,12 @@ public class TileManager : MonoBehaviour
 
         Stopwatch sw = Stopwatch.StartNew();
 
+        if (!Directory.Exists(DataDirectoryOriginal))
+            Debug.Log($"Cannot find data from {nameof(DataDirectoryOriginal)}: " +  DataDirectoryOriginal);
+
+        if (!Directory.Exists(DataDirectoryIntermediate))
+            Directory.CreateDirectory(DataDirectoryIntermediate);
+
         _cancellationTokenSource = new CancellationTokenSource();
         CancellationToken token = _cancellationTokenSource.Token;
 
@@ -71,10 +77,6 @@ public class TileManager : MonoBehaviour
         _dsmPointCloudThread.Start();
         _rasterThread.Start();
         _geometryThread.Start();
-
-        sw.Stop();
-        Debug.Log("Initializing threading took " + sw.ElapsedMilliseconds + " ms");
-        sw.Restart();
 
         TileNamer.Decode(RenderedArea, out Envelope bounds);
         _origo = new Coordinate(bounds.Centre.X, bounds.Centre.Y);
