@@ -7,7 +7,6 @@ using NetTopologySuite.IO.Esri;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class IWaterAreasCreator : Builder, IWaterAreasBuilder

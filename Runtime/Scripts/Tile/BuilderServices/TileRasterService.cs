@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using Unity.VisualScripting;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -28,15 +27,35 @@ namespace Kuoste.LidarWorld.Tile
             _reader.SetCancellationToken(token);
             _creator.SetCancellationToken(token);
 
-            _buildingRoadClassesToRasterValues.AddRange(TopographicDb.RoadLineClassesToRasterValues);
-            _buildingRoadClassesToRasterValues.AddRange(TopographicDb.BuildingPolygonClassesToRasterValues);
 
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.WaterPolygonClassesToRasterValues);
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.SwampPolygonClassesToRasterValues);
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.RockPolygonClassesToRasterValues);
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.SandPolygonClassesToRasterValues);
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.FieldPolygonClassesToRasterValues);
-            _terrainTypeClassesToRasterValues.AddRange(TopographicDb.RockLineClassesToRasterValues);
+            // Combine raster values for buildings and roads
+
+            foreach (var mapper in TopographicDb.RoadLineClassesToRasterValues)
+                _buildingRoadClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.BuildingPolygonClassesToRasterValues)
+                _buildingRoadClassesToRasterValues[mapper.Key] = mapper.Value;
+
+
+            // Combine raster values for terrrain features
+
+            foreach (var mapper in TopographicDb.WaterPolygonClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.SwampPolygonClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.RockPolygonClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.SandPolygonClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.FieldPolygonClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
+
+            foreach (var mapper in TopographicDb.RockLineClassesToRasterValues)
+                _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
 
             _token = token;
         }
