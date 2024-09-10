@@ -10,18 +10,22 @@ using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System;
 using System.Xml.Schema;
+using UnityEditor.SceneManagement;
 
 public class DemBuildTests : MonoBehaviour
 {
     private const int _iEdgeSkip = 100;
     private const int _MaxHeightDiffPerTileEdgeAvg = 10;
 
+    [OneTimeSetUp]
+    public void OneTimeSetup()
+    {
+        EditorSceneManager.LoadSceneInPlayMode("Packages/fi.kuoste.terraintile/Samples/Helsinki9km2/Helsinki9km2.unity", new LoadSceneParameters(LoadSceneMode.Single));
+    }
+
     [UnityTest]
     public IEnumerator DemBuildTestsCompareEdgeHeights()
     {
-        SceneManager.LoadScene("Packages/fi.kuoste.terraintile/Samples/Helsinki9km2/Helsinki9km2.unity", LoadSceneMode.Single);
-        yield return null;
-
         GameObject goTerrain = GameObject.Find("Terrain");
 
         Assert.IsTrue(goTerrain != null);
