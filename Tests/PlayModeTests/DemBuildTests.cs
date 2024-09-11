@@ -43,6 +43,11 @@ public class DemBuildTests : MonoBehaviour
         tileManager.BuildingRoof = Resources.Load<Material>("Materials/BuildingRoof");
         tileManager.BuildingWall = Resources.Load<Material>("Materials/BuildingWall");
 
+        Assert.NotNull(tileManager.TerrainTemplate);
+        Assert.NotNull(tileManager.WaterPlane);
+        Assert.NotNull(tileManager.BuildingRoof);
+        Assert.NotNull(tileManager.BuildingWall);
+
         goTerrain.SetActive(true);
 
         // Wait that all tiles are sent to be rendered
