@@ -43,10 +43,10 @@ public class DemBuildTests : MonoBehaviour
         tileManager.BuildingRoof = Resources.Load<Material>("Materials/BuildingRoof");
         tileManager.BuildingWall = Resources.Load<Material>("Materials/BuildingWall");
 
-        Assert.NotNull(tileManager.TerrainTemplate);
-        Assert.NotNull(tileManager.WaterPlane);
-        Assert.NotNull(tileManager.BuildingRoof);
-        Assert.NotNull(tileManager.BuildingWall);
+        Assert.NotNull(tileManager.BuildingRoof, $"{nameof(tileManager.BuildingRoof)} is null");
+        Assert.NotNull(tileManager.BuildingWall, $"{nameof(tileManager.BuildingWall)} is null");
+        Assert.NotNull(tileManager.TerrainTemplate, $"{nameof(tileManager.TerrainTemplate)} is null");
+        Assert.NotNull(tileManager.WaterPlane, $"{nameof(tileManager.WaterPlane)} is null");
 
         goTerrain.SetActive(true);
 
