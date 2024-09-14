@@ -17,20 +17,51 @@ public class DemBuildTests : MonoBehaviour
     private const int _iEdgeSkip = 100;
     private const int _MaxHeightDiffPerTileEdgeAvg = 10;
 
-    [OneTimeSetUp]
-    public void OneTimeSetup()
+    //[OneTimeSetUp]
+    //public void OneTimeSetup()
+    //{
+    //    EditorSceneManager.LoadSceneInPlayMode("Packages/fi.kuoste.terraintile/Samples/Helsinki9km2/Helsinki9km2.unity", new LoadSceneParameters(LoadSceneMode.Single));
+    //}
+
+    [Test]
+    public void LoadResource()
     {
-        EditorSceneManager.LoadSceneInPlayMode("Packages/fi.kuoste.terraintile/Samples/Helsinki9km2/Helsinki9km2.unity", new LoadSceneParameters(LoadSceneMode.Single));
+        Material roof = Resources.Load<Material>(@"Materials\BuildingRoof");
+
+        Assert.NotNull(roof, $"{nameof(roof)} is null");
+    }
+
+    [Test]
+    public void LoadResource2()
+    {
+        Material roof = Resources.Load<Material>(@"Materials/BuildingRoof");
+
+        Assert.NotNull(roof, $"{nameof(roof)} is null");
     }
 
     [UnityTest]
     public IEnumerator DemBuildTestsCompareEdgeHeights()
     {
-        GameObject goTerrain = GameObject.Find("Terrain");
+        GameObject goTerrain = GameObject.Instantiate(new GameObject());
 
-        Assert.IsTrue(goTerrain != null);
+        // Deactivate GameObject for a while so that we can setup the script without the Awake() being called.
+        goTerrain.SetActive(false);
 
-        TileManager tileManager = goTerrain.GetComponent<TileManager>();
+        TileManager tileManager = goTerrain.AddComponent<TileManager>();
+        tileManager.DataDirectoryIntermediate = @"Packages\fi.kuoste.terraintile\Samples\Helsinki9km2\DataProcessed";
+        tileManager.DataDirectoryOriginal = @"Packages\fi.kuoste.terraintile\Samples\Helsinki9km2\DataNlsFinland";
+        tileManager.RenderedArea = "L4133B1";
+        tileManager.TerrainTemplate = Resources.Load<GameObject>(@"Prefabs\Terrain\TerrainTemplate");
+        tileManager.WaterPlane = Resources.Load<GameObject>(@"Prefabs\Water\WaterPlane");
+        tileManager.BuildingRoof = Resources.Load<Material>(@"Materials\BuildingRoof");
+        tileManager.BuildingWall = Resources.Load<Material>(@"Materials\BuildingWall");
+
+        Assert.NotNull(tileManager.BuildingRoof, $"{nameof(tileManager.BuildingRoof)} is null");
+        Assert.NotNull(tileManager.BuildingWall, $"{nameof(tileManager.BuildingWall)} is null");
+        Assert.NotNull(tileManager.TerrainTemplate, $"{nameof(tileManager.TerrainTemplate)} is null");
+        Assert.NotNull(tileManager.WaterPlane, $"{nameof(tileManager.WaterPlane)} is null");
+
+        goTerrain.SetActive(true);
 
         // Wait that all tiles are sent to be rendered
         while (tileManager.GetTilesInProcessCount() > 0)
