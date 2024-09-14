@@ -24,6 +24,10 @@ jobs:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           packageMode: true
           unityVersion: 2022.3.41f1
+          testMode:
+          - playmode
+          #- editmode
+          projectPath: ./
 
       # Build
       - name: Build project
