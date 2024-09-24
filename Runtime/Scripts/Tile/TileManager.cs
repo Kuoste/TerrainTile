@@ -78,17 +78,42 @@ public class TileManager : MonoBehaviour
         _rasterThread.Start();
         _geometryThread.Start();
 
-        TileNamer.Decode(RenderedArea, out Envelope bounds);
-        _origo = new Coordinate(bounds.Centre.X, bounds.Centre.Y);
-
         TerrainData terrainData = TerrainTemplate.GetComponent<Terrain>().terrainData;
         TileCommon common = new((int)terrainData.heightmapScale.y, terrainData.alphamapResolution,
             Path.GetFullPath(DataDirectoryIntermediate), Path.GetFullPath(DataDirectoryOriginal),
             _sVersion, WaterPlane, BuildingWall, BuildingRoof);
 
+        if (string.IsNullOrEmpty(RenderedArea))
+        {
+            string[] lazFiles = Directory.GetFiles(DataDirectoryOriginal, "*.laz");
+
+            Envelope boundsTotal = new();
+
+            foreach (string file in lazFiles)
+            {
+                string sTileName = Path.GetFileNameWithoutExtension(file);
+                TileNamer.Decode(sTileName, out Envelope boundsFile);
+                boundsTotal.ExpandToInclude(boundsFile);
+
+                AddTilesInBounds(DsmPointCloudService, RasterService, GeometryService, common, boundsFile);
+            }
+            
+            _origo = new Coordinate(boundsTotal.Centre.X, boundsTotal.Centre.Y);
+        }
+        else
+        {
+            TileNamer.Decode(RenderedArea, out Envelope bounds);
+            _origo = new Coordinate(bounds.Centre.X, bounds.Centre.Y);
+
+            AddTilesInBounds(DsmPointCloudService, RasterService, GeometryService, common, bounds);
+        }
+    }
+
+    private void AddTilesInBounds(ITileBuilderService DsmPointCloudService, ITileBuilderService RasterService, ITileBuilderService GeometryService, TileCommon common, Envelope bounds)
+    {
         for (int x = (int)bounds.MinX; x < bounds.MaxX; x += TileCommon.EdgeLength)
         {
-            for (int y = (int)bounds.MinY;  y < bounds.MaxY; y += TileCommon.EdgeLength)
+            for (int y = (int)bounds.MinY; y < bounds.MaxY; y += TileCommon.EdgeLength)
             {
                 string sTileName = TileNamer.Encode(x, y, TileCommon.EdgeLength);
 
