@@ -26,9 +26,6 @@ namespace Kuoste.LidarWorld.Tile
 
         const int _iTotalEdgeLengthInPixels = 1110;
 
-        const float _dOverlapPercentageLowBound = (float)_iOverlapInMeters / TileCommon.EdgeLength;
-        const float _dOverlapPercentageHighBound = 1 - _dOverlapPercentageLowBound;
-
         /// <summary>
         /// Keep track of the las files so that we don't try to process the same tile multiple times.
         /// </summary>
@@ -57,7 +54,6 @@ namespace Kuoste.LidarWorld.Tile
                     Debug.Log($"DemAndDsmPointCloud for {tile.Name} is under work.");
                     return new();
                 }
-
             }
 
             _3kmDemDsmDone.TryAdd(s3km3kmTileName, false);
@@ -92,19 +88,10 @@ namespace Kuoste.LidarWorld.Tile
                     extent.MinX, extent.MinY, extent.MaxX, extent.MaxY);
             }
 
-
-            //int iCount = 0;
-
             foreach (LasPoint p in reader.Points())
             {
                 if (CancellationToken.IsCancellationRequested)
                     return new();
-
-                //iCount++;
-                //if (iCount % 2 == 0)
-                //{
-                //    continue;
-                //}
 
                 if (p.classification != (byte)PointCloud05p.Classes.LowVegetation &&
                     p.classification != (byte)PointCloud05p.Classes.MedVegetation &&
@@ -114,173 +101,129 @@ namespace Kuoste.LidarWorld.Tile
                     continue;
                 }
 
-                // Get submesh indices
-                int x = (int)(p.x - bounds3km.MinX);
-                int y = (int)(p.y - bounds3km.MinY);
-                int ix = x / TileCommon.EdgeLength;
-                int iy = y / TileCommon.EdgeLength;
+                // Move coordinates to 0
+                int i3kmX = (int)(p.x - bounds3km.MinX);
+                int i3kmY = (int)(p.y - bounds3km.MinY);
 
-                AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY);
 
                 // Look if point is part of another submesh overlap area.
                 // Overlap is needed because otherwise adjacent triangulated surfaces have a gap in between.
 
-                float dPercentageX = (float)x / TileCommon.EdgeLength - ix;
-                float dPercentageY = (float)y / TileCommon.EdgeLength - iy;
+                int iTileX = i3kmX % TileCommon.EdgeLength;
+                int iTileY = i3kmY % TileCommon.EdgeLength;
 
-                if (dPercentageX < _dOverlapPercentageLowBound || dPercentageX > _dOverlapPercentageHighBound ||
-                    dPercentageY < _dOverlapPercentageLowBound || dPercentageY > _dOverlapPercentageHighBound)
+                int iLowerBound = _iOverlapInMeters;
+                int iUpperBound = TileCommon.EdgeLength - _iOverlapInMeters;
+                int iMoveBy = _iOverlapInMeters;
+
+                if (iTileX < iLowerBound || iTileX > iUpperBound || iTileY < iLowerBound || iTileY > iUpperBound)
                 {
-                    // This point belongs to an extended area of one or more other submesh.
+                    // This point also belongs to an overlap area of one or more other submesh.
 
                     int iWholeMeshEdgeLength = TileCommon.EdgeLength * iSubmeshesPerEdge;
 
-                    if (x < _iOverlapInMeters || x > (iWholeMeshEdgeLength - _iOverlapInMeters) ||
-                        y < _iOverlapInMeters || y > (iWholeMeshEdgeLength - _iOverlapInMeters))
+                    if (i3kmX < iLowerBound || i3kmX > (iWholeMeshEdgeLength - iUpperBound) ||
+                        i3kmY < iLowerBound || i3kmY > (iWholeMeshEdgeLength - iUpperBound))
                     {
                         // Part of another file. Todo: Save these points to four separate files
                         // so they can be read when adjacent laz files are processed.
+
                         continue;
                     }
 
-                    if (dPercentageX < _dOverlapPercentageLowBound)
+                    if (iTileX < iLowerBound)
                     {
-                        ix = (x - _iOverlapInMeters) / TileCommon.EdgeLength;
-                        iy = y / TileCommon.EdgeLength;
+                        // West
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY);
 
-                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                        if (dPercentageY < _dOverlapPercentageLowBound)
+                        if (iTileY < iLowerBound)
                         {
-                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = (y - _iOverlapInMeters) / TileCommon.EdgeLength;
+                            // Southwest
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY - iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            ix = x / TileCommon.EdgeLength;
-                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // South
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY - iMoveBy);
                         }
-
-                        if (dPercentageY > _dOverlapPercentageHighBound)
+                        else if (iTileY > iUpperBound)
                         {
-                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = (y + _iOverlapInMeters) / TileCommon.EdgeLength;
+                            // Northwest
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY + iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            ix = x / TileCommon.EdgeLength;
-                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // North
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY + iMoveBy);
                         }
                     }
 
-                    if (dPercentageX > _dOverlapPercentageHighBound)
+                    if (iTileX > iUpperBound)
                     {
+                        // East
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY);
 
-                        ix = (x + _iOverlapInMeters) / TileCommon.EdgeLength;
-                        iy = y / TileCommon.EdgeLength;
-
-                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                        if (dPercentageY < _dOverlapPercentageLowBound)
+                        if (iTileY < iLowerBound)
                         {
-                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = (y - _iOverlapInMeters) / TileCommon.EdgeLength;
+                            // Southeast
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY - iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            ix = x / TileCommon.EdgeLength;
-                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // South
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY - iMoveBy);
                         }
-
-                        if (dPercentageY > _dOverlapPercentageHighBound)
+                        else if (iTileY > iUpperBound)
                         {
-                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = (y + _iOverlapInMeters) / TileCommon.EdgeLength;
+                            // Northeast
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY + iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            ix = x / TileCommon.EdgeLength;
-                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // North
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY + iMoveBy);
                         }
                     }
 
-                    if (dPercentageY < _dOverlapPercentageLowBound)
+                    if (iTileY < iLowerBound)
                     {
-                        ix = x / TileCommon.EdgeLength;
-                        iy = (y - _iOverlapInMeters) / TileCommon.EdgeLength;
+                        // South
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY - iMoveBy);
 
-                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                        if (dPercentageX < _dOverlapPercentageLowBound)
+                        if (iTileX < iLowerBound)
                         {
-                            ix = (x - _iOverlapInMeters) / TileCommon.EdgeLength;
-                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            // Southwest
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY - iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = y / TileCommon.EdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // West
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY);
                         }
-
-                        if (dPercentageX > _dOverlapPercentageHighBound)
+                        else if (iTileX > iUpperBound)
                         {
-                            ix = (x + _iOverlapInMeters) / TileCommon.EdgeLength;
-                            //iy = (y - _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            // Southeast
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY - iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = y / TileCommon.EdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // East
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY);
                         }
                     }
 
-                    if (dPercentageY > _dOverlapPercentageHighBound)
+                    if (iTileY > iUpperBound)
                     {
-                        ix = x / TileCommon.EdgeLength;
-                        iy = (y + _iOverlapInMeters) / TileCommon.EdgeLength;
+                        // North
+                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX, i3kmY + iMoveBy);
 
-                        AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                        if (dPercentageX < _dOverlapPercentageLowBound)
+                        if (iTileX < iLowerBound)
                         {
-                            ix = (x - _iOverlapInMeters) / TileCommon.EdgeLength;
-                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            // Northwest
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY + iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            //ix = (x - _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = y / TileCommon.EdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // West
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX - iMoveBy, i3kmY);
                         }
-
-                        if (dPercentageX > _dOverlapPercentageHighBound)
+                        else if (iTileX > iUpperBound)
                         {
-                            ix = (x + _iOverlapInMeters) / TileCommon.EdgeLength;
-                            //iy = (y + _iOverlapInMeters) / m_iSubmeshEdgeLength;
+                            // Northeast
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY + iMoveBy);
 
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
-
-                            //ix = (x + _iOverlapInMeters) / m_iSubmeshEdgeLength;
-                            iy = y / TileCommon.EdgeLength;
-
-                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, ix, iy);
+                            // East
+                            AddPoint(p, iSubmeshesPerEdge, triangulations, grids, i3kmX + iMoveBy, i3kmY);
                         }
                     }
                 }
-
             }
 
             reader.CloseReader();
@@ -348,21 +291,23 @@ namespace Kuoste.LidarWorld.Tile
 
         }
 
-        private static void AddPoint(LasPoint p, int iSubmeshesPerEdge, SurfaceTriangulation[] triangulations, VoxelGrid[] grids, int ix, int iy)
+        private static void AddPoint(LasPoint p, int iSubmeshesPerEdge, SurfaceTriangulation[] triangulations, VoxelGrid[] grids, int x, int y)
         {
-            int iOverlapSubmeshIndex = ix * iSubmeshesPerEdge + iy;
+            int ix = x / TileCommon.EdgeLength;
+            int iy = y / TileCommon.EdgeLength;
 
             if (ix < 0 || ix >= iSubmeshesPerEdge || iy < 0 || iy >= iSubmeshesPerEdge)
             {
-                Debug.LogFormat("Coordinates of a point (x={0}, y={1} are out of bounds", p.x, p.y);
+                throw new Exception($"Coordinates of a point (x={p.x}, y={p.y} are out of bounds");
             }
 
+            int iSubmeshIndex = ix * iSubmeshesPerEdge + iy;
             bool bIsGround = p.classification == (byte)PointCloud05p.Classes.Ground;
 
-            grids[iOverlapSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, bIsGround);
+            grids[iSubmeshIndex].AddPoint(p.x, p.y, (float)p.z, p.classification, bIsGround);
 
             if (bIsGround)
-                triangulations[iOverlapSubmeshIndex].AddPoint(p);
+                triangulations[iSubmeshIndex].AddPoint(p);
         }
     }
 }
