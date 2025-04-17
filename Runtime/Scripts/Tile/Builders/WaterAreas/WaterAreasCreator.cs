@@ -72,7 +72,7 @@ public class IWaterAreasCreator : Builder, IWaterAreasBuilder
                                 dHeight = Math.Min(dHeight, h);
                         }
 
-                        if (double.IsNaN(dHeight))
+                        if (dHeight == double.MaxValue)
                         {
                             Debug.Log($"Tile {tile.Name}: Cannot find surface height for a lake ({p.ExteriorRing.Coordinates.Length} polygon corners).");
                             continue;

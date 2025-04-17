@@ -238,16 +238,23 @@ namespace Kuoste.LidarWorld.Tile
 
                 Stopwatch sw2 = Stopwatch.StartNew();
 
+                // Use the name of a 1x1 km2 tile to get the coordinates
+                string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
+                TileNamer.Decode(sSubmeshName, out Envelope env);
+
                 SurfaceTriangulation tri = triangulations[i];
                 VoxelGrid grid = grids[i];
+
+                if (tri.PointCount < 10)
+                {
+                    Debug.Log($"Not enough points for triangulating {sSubmeshName}");
+                    continue;
+                }
 
                 grid.SortAndTrim();
 
                 tri.Create();
 
-                // Use the name of a 1x1 km2 tile to get the coordinates
-                string sSubmeshName = s3km3kmTileName + "_" + (i + 1).ToString();
-                TileNamer.Decode(sSubmeshName, out Envelope env);
 
                 // Cannot use full overlap because triangulation is not complete on edges
                 env.ExpandBy(_iOverlapInMeters / 2);
@@ -260,7 +267,9 @@ namespace Kuoste.LidarWorld.Tile
                 tri.Clear();
 
                 sw2.Stop();
-                Debug.Log($"Triangulation {i} took {sw2.Elapsed.TotalSeconds} s. Empty cells before {iMissBefore}, after {iMissAfter}.");
+
+                Debug.Log($"Triangulating {sSubmeshName} took {sw2.Elapsed.TotalSeconds} s. " +
+                    $"Empty cells before {iMissBefore}, after {iMissAfter}.");
             }
 
             VoxelGrid output = new();
