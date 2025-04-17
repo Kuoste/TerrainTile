@@ -15,8 +15,10 @@ namespace Kuoste.LidarWorld.Tile
 
         /// <summary>
         /// Offset to adjust the height for the whole system
+        /// Depending on Common.DemMaxHeight, if 800 then use 300 for Saana, since highest point 1050
+        /// Use 10 or 50 for Helsinki, since some points are below sea level 
         /// </summary>
-        private const int iHeightOffset = 10;
+        private const int iHeightOffset = 50; // Lappland -300, Helsinki 50
 
         /// <summary>
         /// Used for scaling the trees. Use bigger divider to get smaller trees.
@@ -180,6 +182,7 @@ namespace Kuoste.LidarWorld.Tile
                     _tile.Common.BuildingRoof,
                     _tile.Common.BuildingWall
                 };
+                go.AddComponent<MeshCollider>().sharedMesh = mesh;
 
                 mesh.RecalculateNormals();
                 mesh.RecalculateBounds();
