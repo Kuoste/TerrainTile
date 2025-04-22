@@ -10,6 +10,7 @@ using LasUtility.Nls;
 using System.Threading;
 using System.Globalization;
 using System.IO;
+using Kuoste.LidarWorld.Tools.Logger;
 
 public class TileManager : MonoBehaviour
 {
@@ -42,6 +43,11 @@ public class TileManager : MonoBehaviour
 
     private CancellationTokenSource _cancellationTokenSource;
 
+    private LogLevel _LogLevel = LogLevel.Debug;
+    private bool _bLogConsole = false;
+    private bool _bLogFile = true;
+    private bool _bLogUnity = true;
+
     public int GetTilesInProcessCount()
     {
         return _terrainTilesInProcess.Count;
@@ -64,11 +70,29 @@ public class TileManager : MonoBehaviour
         _cancellationTokenSource = new CancellationTokenSource();
         CancellationToken token = _cancellationTokenSource.Token;
 
-        ITileBuilderService DsmPointCloudService = new TileDsmPointCloudService(new DemDsmReader(), new DemDsmCreator(), token);
-        ITileBuilderService RasterService = new TileRasterService(new RasterReader(), new RasterCreator(), token);
-        ITileBuilderService GeometryService = new TileGeometryService(new BuildingsReader(), new BuildingsCreator(),
-            new TreeReader(),  new SimpleTreeCreator(),
-            new WaterAreasReader(), new IWaterAreasCreator(), token);
+        CompositeLogger loggerDsm = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Dsm.log"));
+        CompositeLogger loggerRaster = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Raster.log"));
+        CompositeLogger loggerGeometry = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Geometry.log"));
+
+        ITileBuilderService DsmPointCloudService = new TileDsmPointCloudService(
+                new DemDsmReader() { CancellationToken = token, Logger = loggerDsm },
+                new DemDsmCreator() { CancellationToken = token, Logger = loggerDsm },
+                token, loggerDsm);
+
+        ITileBuilderService RasterService = new TileRasterService(
+            new RasterReader() { CancellationToken = token, Logger = loggerRaster },
+            new RasterCreator() { CancellationToken = token, Logger = loggerRaster },
+            token, loggerRaster);
+
+        ITileBuilderService GeometryService =
+            new TileGeometryService(
+                new BuildingsReader() { CancellationToken = token, Logger = loggerGeometry },
+                new BuildingsCreator() { CancellationToken = token, Logger = loggerGeometry },
+                new TreeReader() { CancellationToken = token, Logger = loggerGeometry },
+                new SimpleTreeCreator() { CancellationToken = token, Logger = loggerGeometry },
+                new WaterAreasReader() { CancellationToken = token, Logger = loggerGeometry },
+                new IWaterAreasCreator() { CancellationToken = token, Logger = loggerGeometry },
+                token, loggerGeometry);
 
         _dsmPointCloudThread = new(() => DsmPointCloudService.BuilderThread());
         _rasterThread = new(() => RasterService.BuilderThread());

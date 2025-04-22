@@ -23,7 +23,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public List<Tile.Building> Build(Tile tile)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return new();
 
             // Get topographic db tile name
@@ -44,7 +44,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (Feature f in features)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                 {
                     streamWriter.Close();
                     File.Delete(sOutputTempName);

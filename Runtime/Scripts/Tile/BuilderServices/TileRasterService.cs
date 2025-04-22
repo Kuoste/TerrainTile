@@ -1,3 +1,4 @@
+using Kuoste.LidarWorld.Tools.Logger;
 using LasUtility.Nls;
 using LasUtility.ShapefileRasteriser;
 using NetTopologySuite.Geometries;
@@ -8,7 +9,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -19,14 +19,11 @@ namespace Kuoste.LidarWorld.Tile
         private readonly Dictionary<int, byte> _buildingRoadClassesToRasterValues = new();
         private readonly Dictionary<int, byte> _terrainTypeClassesToRasterValues = new();
 
-        public TileRasterService(IRasterBuilder reader, IRasterBuilder creator, CancellationToken token)
+        public TileRasterService(IRasterBuilder reader, IRasterBuilder creator, 
+            CancellationToken token, CompositeLogger logger)
         {
             _reader = reader;
             _creator = creator;
-
-            _reader.SetCancellationToken(token);
-            _creator.SetCancellationToken(token);
-
 
             // Combine raster values for buildings and roads
 
@@ -58,13 +55,14 @@ namespace Kuoste.LidarWorld.Tile
                 _terrainTypeClassesToRasterValues[mapper.Key] = mapper.Value;
 
             _token = token;
+            _logger = logger;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
-                if (_token.IsCancellationRequested)
+                if (_token != null && _token.IsCancellationRequested)
                     return;
 
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))

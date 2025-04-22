@@ -1,10 +1,10 @@
+using Kuoste.LidarWorld.Tools.Logger;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -16,34 +16,27 @@ namespace Kuoste.LidarWorld.Tile
 
         public TileGeometryService(IBuildingsBuilder buildingsReader, IBuildingsBuilder buildingsCreator,
             ITreeBuilder treeReader, ITreeBuilder treeCreator,
-            IWaterAreasBuilder waterAreasReader, IWaterAreasBuilder waterAreasCreator, CancellationToken token)
+            IWaterAreasBuilder waterAreasReader, IWaterAreasBuilder waterAreasCreator, 
+            CancellationToken token, CompositeLogger logger)
         {
             _buildingsReader = buildingsReader;
             _buildingsCreator = buildingsCreator;
 
-            _buildingsReader.SetCancellationToken(token);
-            _buildingsCreator.SetCancellationToken(token);
-
             _treeReader = treeReader;
             _treeCreator = treeCreator;
-
-            _treeReader.SetCancellationToken(token);
-            _treeCreator.SetCancellationToken(token);
 
             _waterAreasReader = waterAreasReader;
             _waterAreasCreator = waterAreasCreator;
 
-            _waterAreasReader.SetCancellationToken(token);
-            _waterAreasCreator.SetCancellationToken(token);
-
             _token = token;
+            _logger = logger;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
-                if (_token.IsCancellationRequested)
+                if (_token != null && _token.IsCancellationRequested)
                     return;
 
                 if (_tileQueue.TryPeek(out Tile tile))
@@ -106,8 +99,11 @@ namespace Kuoste.LidarWorld.Tile
 
                         Interlocked.Increment(ref tile.CompletedCount);
 
-                        Debug.Log($"Tile {tile.Name} geometries created in {swCreate.Elapsed.TotalSeconds} s " +
-                            $"and read in {swRead.Elapsed.TotalSeconds} s.");
+                        if (swRead.ElapsedMilliseconds > 0)
+                            _logger.LogInfo($"Tile {tile.Name} geometries read in {swRead.Elapsed.TotalSeconds} s.");
+
+                        if (swCreate.ElapsedMilliseconds > 0)
+                            _logger.LogInfo($"Tile {tile.Name} geometries created in {swCreate.Elapsed.TotalSeconds} s.");
 
                         Thread.Sleep(10);
                     }

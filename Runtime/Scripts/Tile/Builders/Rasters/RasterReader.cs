@@ -19,7 +19,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public IRaster Build(Tile tile)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return new ByteRaster();
 
             string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IRasterBuilder.Filename(tile.Name, _sRasterFilenameSpecifier, tile.Common.Version));

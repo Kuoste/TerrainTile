@@ -28,7 +28,7 @@ public class SimpleTreeCreator : Builder, ITreeBuilder
 
         List<Point> trees = new();
 
-        if (CancellationToken.IsCancellationRequested)
+        if (IsCancellationRequested())
             return trees;
 
         string sOutputFilename = Path.Combine(tile.Common.DirectoryIntermediate, ITreeBuilder.Filename(tile.Name, tile.Common.Version));
@@ -42,7 +42,7 @@ public class SimpleTreeCreator : Builder, ITreeBuilder
         {
             for (int jCol = start.Column; jCol < end.Column; jCol++)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                 {
                     streamWriter.Close();
                     File.Delete(sOutputTempName);

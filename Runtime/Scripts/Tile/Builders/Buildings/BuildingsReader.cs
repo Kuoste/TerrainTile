@@ -14,7 +14,7 @@ namespace Kuoste.LidarWorld.Tile
         {
             List<Tile.Building> buildings = new();
 
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return buildings;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -24,7 +24,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sBuilding in sBuildings)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                     return buildings;
 
                 List<Vector3> buildingVertices = new();

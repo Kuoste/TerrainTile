@@ -10,7 +10,7 @@ public class WaterAreasReader : Builder, IWaterAreasBuilder
     {
         List<Polygon> polygons = new();
 
-        if (CancellationToken.IsCancellationRequested)
+        if (IsCancellationRequested())
             return polygons;
 
         string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
@@ -19,7 +19,7 @@ public class WaterAreasReader : Builder, IWaterAreasBuilder
 
         foreach (string sArea in sAreas)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return polygons;
 
             string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);

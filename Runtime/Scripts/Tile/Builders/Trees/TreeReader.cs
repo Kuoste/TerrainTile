@@ -16,7 +16,7 @@ namespace Kuoste.LidarWorld.Tile
         {
             List<Point> trees = new();
 
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return trees;
 
             TileNamer.Decode(tile.Name, out Envelope bounds);
@@ -26,7 +26,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (string sTree in sTrees)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                     return trees;
 
                 string[] sCordinates = sTree.Split("[", StringSplitOptions.RemoveEmptyEntries);

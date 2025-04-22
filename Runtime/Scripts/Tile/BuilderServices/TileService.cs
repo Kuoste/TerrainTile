@@ -1,9 +1,9 @@
+using Kuoste.LidarWorld.Tools.Logger;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -12,6 +12,8 @@ namespace Kuoste.LidarWorld.Tile
         protected ConcurrentQueue<Tile> _tileQueue = new();
 
         protected CancellationToken _token;
+
+        protected CompositeLogger _logger;
 
         public void AddTile(Tile tile)
         {

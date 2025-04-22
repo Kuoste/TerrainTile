@@ -1,3 +1,4 @@
+using Kuoste.LidarWorld.Tools.Logger;
 using LasUtility.Nls;
 using LasUtility.VoxelGrid;
 using System.Collections;
@@ -7,7 +8,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -16,22 +16,20 @@ namespace Kuoste.LidarWorld.Tile
         private readonly IDemDsmBuilder _reader;
         private readonly IDemDsmBuilder _creator;
 
-        public TileDsmPointCloudService(IDemDsmBuilder reader, IDemDsmBuilder creator, CancellationToken token)
+        public TileDsmPointCloudService(IDemDsmBuilder reader, IDemDsmBuilder creator, 
+            CancellationToken token, CompositeLogger logger)
         {
             _reader = reader;
             _creator = creator;
-
-            _reader.SetCancellationToken(token);
-            _creator.SetCancellationToken(token);
-
             _token = token;
+            _logger = logger;
         }
 
         public void BuilderThread()
         {
             while (true)
             {
-                if (_token.IsCancellationRequested)
+                if (_token != null && _token.IsCancellationRequested)
                     return;
 
                 if (_tileQueue.Count > 0 && _tileQueue.TryDequeue(out Tile tile))
@@ -44,17 +42,18 @@ namespace Kuoste.LidarWorld.Tile
                     {
                         // Load grid from filesystem
                         tile.DemDsm = _reader.Build(tile);
+                        sw.Stop();
+                        _logger.LogInfo($"Tile {tile.Name} DEM and voxelgrid read in {sw.Elapsed.TotalSeconds} s.");
                     }
                     else
                     {
                         // Create grid from las files
                         tile.DemDsm = _creator.Build(tile);
+                        sw.Stop();
+                        _logger.LogInfo($"Tile {tile.Name} DEM and voxelgrid created in {sw.Elapsed.TotalSeconds} s.");
                     }
 
                     Interlocked.Increment(ref tile.CompletedCount);
-
-                    sw.Stop();
-                    Debug.Log($"Tile {tile.Name} DEM and voxelgrid built in {sw.Elapsed.TotalSeconds} s.");
 
                     Thread.Sleep(10);
                 }

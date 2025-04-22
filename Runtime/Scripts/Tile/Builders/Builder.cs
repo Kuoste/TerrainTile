@@ -1,14 +1,16 @@
+using Kuoste.LidarWorld.Tools.Logger;
 using System.Threading;
 
 namespace Kuoste.LidarWorld.Tile
 {
     public class Builder : IBuilder
     {
-        protected CancellationToken CancellationToken { get; private set; }
+        public CancellationToken CancellationToken { get; set; }
+        public CompositeLogger Logger { get; set; }
 
-        public void SetCancellationToken(CancellationToken token)
+        public bool IsCancellationRequested()
         {
-            CancellationToken = token;
+            return CancellationToken != null && CancellationToken.IsCancellationRequested;
         }
     }
 }
