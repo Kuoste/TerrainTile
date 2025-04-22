@@ -15,7 +15,7 @@ public class IWaterAreasCreator : Builder, IWaterAreasBuilder
     {
         List<Polygon> waterAreas = new();
 
-        if (CancellationToken.IsCancellationRequested)
+        if (IsCancellationRequested())
             return waterAreas;
 
         // Get topographic db tile name
@@ -34,7 +34,7 @@ public class IWaterAreasCreator : Builder, IWaterAreasBuilder
 
         foreach (Feature f in features)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
             {
                 streamWriter.Close();
                 File.Delete(sOutputTempName);

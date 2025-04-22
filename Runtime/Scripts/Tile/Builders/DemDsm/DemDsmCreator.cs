@@ -8,7 +8,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using Debug = UnityEngine.Debug;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -33,7 +32,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public VoxelGrid Build(Tile tile)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return new();
 
             TileNamer.Decode(tile.Name, out Envelope bounds1km);
@@ -46,12 +45,12 @@ namespace Kuoste.LidarWorld.Tile
                 if (bIsCompleted)
                 {
                     // Las file is already processed, so just update the tile.
-                    Debug.Log($"DemAndDsmPointCloud for {tile.Name} is already completed.");
+                    Logger.LogInfo($"DemAndDsmPointCloud for {tile.Name} is already completed.");
                     return VoxelGrid.Deserialize(Path.Combine(tile.Common.DirectoryIntermediate, IDemDsmBuilder.Filename(tile.Name, tile.Common.Version)));
                 }
                 else
                 {
-                    Debug.Log($"DemAndDsmPointCloud for {tile.Name} is under work.");
+                    Logger.LogInfo($"DemAndDsmPointCloud for {tile.Name} is under work.");
                     return new();
                 }
             }
@@ -90,7 +89,7 @@ namespace Kuoste.LidarWorld.Tile
 
             foreach (LasPoint p in reader.Points())
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                     return new();
 
                 if (p.classification != (byte)PointCloud05p.Classes.LowVegetation &&
@@ -229,11 +228,11 @@ namespace Kuoste.LidarWorld.Tile
             reader.CloseReader();
 
             sw.Stop();
-            Debug.Log($"Tile {s3km3kmTileName} was read to grid and triangulations in {sw.Elapsed.TotalSeconds} seconds.");
+            Logger.LogDebug($"Tile {s3km3kmTileName} was read to grid and triangulations in {sw.Elapsed.TotalSeconds} seconds.");
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                     return new();
 
                 Stopwatch sw2 = Stopwatch.StartNew();
@@ -247,7 +246,7 @@ namespace Kuoste.LidarWorld.Tile
 
                 if (tri.PointCount < 10)
                 {
-                    Debug.Log($"Not enough points for triangulating {sSubmeshName}");
+                    Logger.LogWarning($"Not enough points for triangulating {sSubmeshName}");
                     continue;
                 }
 
@@ -268,7 +267,7 @@ namespace Kuoste.LidarWorld.Tile
 
                 sw2.Stop();
 
-                Debug.Log($"Triangulating {sSubmeshName} took {sw2.Elapsed.TotalSeconds} s. " +
+                Logger.LogDebug($"Triangulating {sSubmeshName} took {sw2.Elapsed.TotalSeconds} s. " +
                     $"Empty cells before {iMissBefore}, after {iMissAfter}.");
             }
 
@@ -276,7 +275,7 @@ namespace Kuoste.LidarWorld.Tile
 
             for (int i = 0; i < iSubmeshCount; i++)
             {
-                if (CancellationToken.IsCancellationRequested)
+                if (IsCancellationRequested())
                     return new();
 
                 string s1km1kmTilename = s3km3kmTileName + "_" + (i + 1).ToString();

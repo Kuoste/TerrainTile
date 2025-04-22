@@ -7,7 +7,6 @@ using NetTopologySuite.IO.Esri.Shapefiles.Readers;
 using NetTopologySuite.IO.Esri;
 using System.IO;
 using System.Diagnostics;
-using Debug = UnityEngine.Debug;
 using System.Collections.Generic;
 
 namespace Kuoste.LidarWorld.Tile
@@ -26,7 +25,7 @@ namespace Kuoste.LidarWorld.Tile
 
         public IRaster Build(Tile tile)
         {
-            if (CancellationToken.IsCancellationRequested)
+            if (IsCancellationRequested())
                 return new ByteRaster();
 
             // Get topographic db tile name
@@ -40,7 +39,7 @@ namespace Kuoste.LidarWorld.Tile
             if (true == File.Exists(sFullFilename))
             {
                 // Shapefile is already processed, so just update the tile.
-                Debug.Log($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
+                Logger.LogInfo($"TerrainTypeRaster {s12km12kmMapTileName} for {tile.Name} was already completed.");
                 return ByteRaster.CreateFromAscii(sFullFilename);
             }
 
@@ -65,7 +64,7 @@ namespace Kuoste.LidarWorld.Tile
             {
                 for (int y = (int)bounds12km.MinY; y < (int)bounds12km.MaxY; y += TileCommon.EdgeLength)
                 {
-                    if (CancellationToken.IsCancellationRequested)
+                    if (IsCancellationRequested())
                         return new ByteRaster();
 
                     // Save to filesystem
@@ -77,8 +76,6 @@ namespace Kuoste.LidarWorld.Tile
             }
 
             //rasteriser.WriteAsAscii(Path.Combine(tile.DirectoryIntermediate, s12km12kmMapTileName + "_full.asc"));
-
-            Debug.Log($"Rasterising {_sRasterFilenameSpecifier} for 12x12 km2 tile {s12km12kmMapTileName} took {sw.Elapsed.TotalSeconds} s.");
 
             return rasteriser.Crop((int)bounds.MinX, (int)bounds.MinY,
                 (int)bounds.MinX + TileCommon.EdgeLength, (int)bounds.MinY + TileCommon.EdgeLength);
