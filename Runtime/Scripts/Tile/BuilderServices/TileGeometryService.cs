@@ -41,7 +41,7 @@ namespace Kuoste.LidarWorld.Tile
 
                 if (_tileQueue.TryPeek(out Tile tile))
                 {
-                    // Geometries require that other components are ready
+                    // Creating geometries require that other components are ready
                     bool bAreOthersReady = Interlocked.Read(ref tile.CompletedCount) >= (tile.CompletedRequired - 1);
 
                     if (true == bAreOthersReady && _tileQueue.TryDequeue(out tile))

@@ -77,8 +77,6 @@ namespace Kuoste.LidarWorld.Tile
 
             //rasteriser.WriteAsAscii(Path.Combine(tile.DirectoryIntermediate, s12km12kmMapTileName + "_full.asc"));
 
-            Logger.LogInfo($"Rasterising {_sRasterFilenameSpecifier} for 12x12 km2 tile {s12km12kmMapTileName} took {sw.Elapsed.TotalSeconds} s.");
-
             return rasteriser.Crop((int)bounds.MinX, (int)bounds.MinY,
                 (int)bounds.MinX + TileCommon.EdgeLength, (int)bounds.MinY + TileCommon.EdgeLength);
         }
