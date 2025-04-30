@@ -7,7 +7,6 @@ using NetTopologySuite.IO.Esri;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 public class IWaterAreasCreator : Builder, IWaterAreasBuilder
 {
@@ -74,7 +73,7 @@ public class IWaterAreasCreator : Builder, IWaterAreasBuilder
 
                         if (dHeight == double.MaxValue)
                         {
-                            Debug.Log($"Tile {tile.Name}: Cannot find surface height for a lake ({p.ExteriorRing.Coordinates.Length} polygon corners).");
+                            Logger.LogError($"Tile {tile.Name}: Cannot find surface height for a lake ({p.ExteriorRing.Coordinates.Length} polygon corners).");
                             continue;
                         }
 

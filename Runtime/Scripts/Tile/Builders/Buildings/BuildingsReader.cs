@@ -1,10 +1,9 @@
-
 using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
+using System.Numerics;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -31,15 +30,13 @@ namespace Kuoste.LidarWorld.Tile
                 List<int> buildingTriangles = new();
                 int iStartingTriangleIndexForWalls = 0;
 
-                float fBuildingHeight = 0.0f;
-                //Coordinate cMin = new(double.MaxValue, double.MaxValue);
-                //Coordinate cMax = new(double.MinValue, double.MinValue);
+                float fWallHeight = 0.0f;
 
                 string[] sPolygons = sBuilding.Split("Polygon");
 
                 for (int i = 0; i < sPolygons.Length; i++)
                 {
-                    List<CoordinateZ> coordinates = new();
+                    List<Vector3> vCoordinates = new();
                     string[] sCordinates = sPolygons[i].Split("[", StringSplitOptions.RemoveEmptyEntries);
 
                     foreach (string sCoordinate in sCordinates)
@@ -47,19 +44,15 @@ namespace Kuoste.LidarWorld.Tile
                         if (!char.IsDigit(sCoordinate[0]))
                             continue;
 
-                        var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
+                        string[] sCoords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
 
                         // Delete the last character which is a closing bracket and everyting after it
-                        coords[2] = coords[2][..coords[2].IndexOf(']')];
+                        sCoords[2] = sCoords[2][..sCoords[2].IndexOf(']')];
 
-                        coordinates.Add(new(
-                            double.Parse(coords[0]),
-                            double.Parse(coords[1]),
-                            double.Parse(coords[2])));
-
+                        vCoordinates.Add(new(float.Parse(sCoords[0]), float.Parse(sCoords[1]), float.Parse(sCoords[2])));
                     }
 
-                    if (coordinates.Count == 0)
+                    if (vCoordinates.Count == 0)
                         continue;
 
                     if (i == sPolygons.Length - 1)
@@ -69,57 +62,51 @@ namespace Kuoste.LidarWorld.Tile
                         iStartingTriangleIndexForWalls = buildingTriangles.Count;
 
                         // Add wall vertices
-                        for (int c = 0; c < coordinates.Count; c++)
+                        for (int c = 1; c < vCoordinates.Count; c++)
                         {
-                            Coordinate c1 = coordinates[c];
+                            Vector3 c1 = vCoordinates[c];
+                            Vector3 c0 = vCoordinates[c - 1];
 
-                            //cMin.X = Math.Min(cMin.X, c1.X);
-                            //cMin.Y = Math.Min(cMin.Y, c1.Y);
-                            //cMax.X = Math.Max(cMax.X, c1.X);
-                            //cMax.Y = Math.Max(cMax.Y, c1.Y);
+                            // Create a quad between the two points
+                            int iVertexStart = buildingVertices.Count;
+                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)(c0.Y - bounds.MinY), c0.Z));
+                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)(c1.Y - bounds.MinY), c1.Z));
+                            buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)(c1.Y - bounds.MinY), fWallHeight));
+                            buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)(c0.Y - bounds.MinY), fWallHeight));
 
-                            if (c > 0)
-                            {
-                                Coordinate c0 = coordinates[c - 1];
-
-                                // Create a quad between the two points
-                                int iVertexStart = buildingVertices.Count;
-                                buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), (float)c0.Z, (float)(c0.Y - bounds.MinY)));
-                                buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), (float)c1.Z, (float)(c1.Y - bounds.MinY)));
-                                buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX), fBuildingHeight, (float)(c1.Y - bounds.MinY)));
-                                buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX), fBuildingHeight, (float)(c0.Y - bounds.MinY)));
-
-                                buildingTriangles.Add(iVertexStart);
-                                buildingTriangles.Add(iVertexStart + 1);
-                                buildingTriangles.Add(iVertexStart + 2);
-                                buildingTriangles.Add(iVertexStart);
-                                buildingTriangles.Add(iVertexStart + 2);
-                                buildingTriangles.Add(iVertexStart + 3);
-                            }
+                            buildingTriangles.Add(iVertexStart);
+                            buildingTriangles.Add(iVertexStart + 1);
+                            buildingTriangles.Add(iVertexStart + 2);
+                            buildingTriangles.Add(iVertexStart);
+                            buildingTriangles.Add(iVertexStart + 2);
+                            buildingTriangles.Add(iVertexStart + 3);
                         }
                     }
                     else
                     {
-                        // Rest of the polygons are roof triangles
+                        // All polygons before walls are roof triangles
 
                         // Count should be 4 because the first and last coordinate are the same
-                        if (coordinates.Count != 4)
+                        if (vCoordinates.Count != 4)
                             throw new Exception("Invalid roof polygon format");
 
-                        // Add roof vertices
-                        Coordinate c0 = coordinates[0];
-                        Coordinate c1 = coordinates[1];
-                        Coordinate c2 = coordinates[2];
-
-                        fBuildingHeight = (float)c0.Z;
+                        // All the heights are currently the same. Save any of them for the wall height
+                        fWallHeight = vCoordinates[0].Z;
 
                         int iVertexStart = buildingVertices.Count;
-                        buildingVertices.Add(new Vector3((float)(c0.X - bounds.MinX),
-                            fBuildingHeight, (float)(c0.Y - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c1.X - bounds.MinX),
-                            fBuildingHeight, (float)(c1.Y - bounds.MinY)));
-                        buildingVertices.Add(new Vector3((float)(c2.X - bounds.MinX),
-                            fBuildingHeight, (float)(c2.Y - bounds.MinY)));
+
+                        buildingVertices.Add(new(
+                            (float)(vCoordinates[0].X - bounds.MinX), 
+                            (float)(vCoordinates[0].Y - bounds.MinY), 
+                            vCoordinates[0].Z));
+                        buildingVertices.Add(new(
+                            (float)(vCoordinates[1].X - bounds.MinX), 
+                            (float)(vCoordinates[1].Y - bounds.MinY), 
+                            vCoordinates[1].Z));
+                        buildingVertices.Add(new(
+                            (float)(vCoordinates[2].X - bounds.MinX), 
+                            (float)(vCoordinates[2].Y - bounds.MinY), 
+                            vCoordinates[2].Z));
 
                         buildingTriangles.Add(iVertexStart);
                         buildingTriangles.Add(iVertexStart + 1);
@@ -134,7 +121,6 @@ namespace Kuoste.LidarWorld.Tile
                         Vertices = buildingVertices.ToArray(),
                         Triangles = buildingTriangles.ToArray(),
                         iSubmeshSeparator = iStartingTriangleIndexForWalls,
-                        //Bounds = new Envelope(cMin, cMax)
                     });
                 }
             }
