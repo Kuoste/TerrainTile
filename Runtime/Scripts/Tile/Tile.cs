@@ -4,8 +4,8 @@ using NetTopologySuite.Geometries;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Threading;
-using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {

@@ -9,8 +9,6 @@ using NetTopologySuite.IO.Esri;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEditor;
-using UnityEngine;
 
 namespace Kuoste.LidarWorld.Tile
 {
@@ -106,7 +104,7 @@ namespace Kuoste.LidarWorld.Tile
 
                     if (buildingGroundHeights.Count == 0)
                     {
-                        Debug.Log("No ground height for a building found.");
+                        Logger.LogError("No ground height for a building found.");
                         continue;
                     }
 
@@ -157,7 +155,7 @@ namespace Kuoste.LidarWorld.Tile
 
                     if (tri.PointCount < 4)
                     {
-                        Debug.Log("Not enough points for triangulation");
+                        Logger.LogError("Not enough points for triangulation");
                         continue;
                     }
 
@@ -167,7 +165,7 @@ namespace Kuoste.LidarWorld.Tile
                     }
                     catch (Exception e)
                     {
-                        Debug.Log(e.Message);
+                        Logger.LogException(e);
                         continue;
                     }
 
@@ -220,7 +218,7 @@ namespace Kuoste.LidarWorld.Tile
 
             if (iDefaultHeightCount > 0)
             {
-                Debug.Log($"Tile {tile.Name}: {iDefaultHeightCount} building parts defaulted to height {_fDefaultBuildingHeight}.");
+                Logger.LogInfo($"Tile {tile.Name}: {iDefaultHeightCount} building parts defaulted to height {_fDefaultBuildingHeight}.");
             }
 
             streamWriter.Close();
@@ -299,7 +297,7 @@ namespace Kuoste.LidarWorld.Tile
                 if (double.IsNaN(dGroundHeight))
                     dGroundHeight = fLowestGroundHeight;
 
-                streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{dGroundHeight}]");
+                streamWriter.Write($"[{Math.Round(c.X, 2)},{Math.Round(c.Y, 2)},{Math.Round(dGroundHeight, 2)}]");
 
                 if (i < buildingExterior.Coordinates.Length - 1)
                 {

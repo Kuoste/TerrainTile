@@ -165,9 +165,12 @@ namespace Kuoste.LidarWorld.Tile
         {
             foreach (Tile.Building b in _tile.Buildings)
             {
+                // Convert System.Numerics.Vector3[] to UnityEngine.Vector3[]. Swap Y and Z coordinates to get upwards Y axis.
+                UnityEngine.Vector3[] unityVertices = Array.ConvertAll(b.Vertices, v => new UnityEngine.Vector3(v.X, v.Z, v.Y));
+
                 Mesh mesh = new()
                 {
-                    vertices = b.Vertices,
+                    vertices = unityVertices,
                     triangles = b.Triangles,
                     subMeshCount = 2
                 };
