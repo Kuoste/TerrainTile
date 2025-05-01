@@ -1,3 +1,4 @@
+using Kuoste.TerrainEngine.Common.Tiles;
 using LasUtility.Common;
 using LasUtility.Nls;
 using NetTopologySuite.Geometries;
@@ -7,11 +8,15 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Debug = UnityEngine.Debug;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainTile.Tiles
 {
     public class TileUpdater : MonoBehaviour
     {
         private Tile _tile;
+        private Vector3 _heightmapScale;
+        private GameObject _waterPlane;
+        private Material _buildingRoof;
+        private Material _buildingWall;
 
         /// <summary>
         /// Offset to adjust the height for the whole system
@@ -33,6 +38,14 @@ namespace Kuoste.LidarWorld.Tile
         public void SetTile(Tile tile)
         {
             _tile = tile;
+        }
+
+        public void SetUnityVariables(Vector3 heightmapScale, GameObject waterPlane, Material buildingRoof, Material buildingWall)
+        {
+            _heightmapScale = heightmapScale;
+            _waterPlane = waterPlane;
+            _buildingRoof = buildingRoof;
+            _buildingWall = buildingWall;
         }
 
         // Start is called before the first frame update
@@ -132,14 +145,14 @@ namespace Kuoste.LidarWorld.Tile
                         iOutOfBoundsLowCount++;
                         h = 0.0f;
                     }
-                    else if (h > _tile.Common.DemMaxHeight)
+                    else if (h > _heightmapScale.y)
                     {
                         fOutOfBoundsHighest = Math.Max(fOutOfBoundsHighest, h);
                         iOutOfBoundsHighCount++;
-                        h = _tile.Common.DemMaxHeight;
+                        h = _heightmapScale.y;
                     }
 
-                    fHeights[x, y] = h / _tile.Common.DemMaxHeight;
+                    fHeights[x, y] = h / _heightmapScale.y;
                 }
             }
 
@@ -151,7 +164,7 @@ namespace Kuoste.LidarWorld.Tile
 
             if (iOutOfBoundsHighCount > 0)
             {
-                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_tile.Common.DemMaxHeight}. Max was {fOutOfBoundsHighest}." +
+                Debug.Log($"Found {iOutOfBoundsHighCount} DEM heights over {_heightmapScale.y}. Max was {fOutOfBoundsHighest}." +
                     $"iHeightOffset: {iHeightOffset}");
             }
 
@@ -182,8 +195,8 @@ namespace Kuoste.LidarWorld.Tile
                 go.AddComponent<MeshFilter>().mesh = mesh;
                 go.AddComponent<MeshRenderer>().materials = new Material[]
                 {
-                    _tile.Common.BuildingRoof,
-                    _tile.Common.BuildingWall
+                    _buildingRoof,
+                    _buildingWall
                 };
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
 
@@ -308,7 +321,7 @@ namespace Kuoste.LidarWorld.Tile
             TileNamer.Decode(_tile.Name, out Envelope bounds);
 
             //GameObject goPlane = Resources.Load<GameObject>("Prefabs/WaterPlane");
-            GameObject goPlane = _tile.Common.WaterPlane;
+            GameObject goPlane = _waterPlane;
 
             Bounds goPlaneBounds = goPlane.GetComponent<MeshFilter>().sharedMesh.bounds;
             float fGoPlaneMeshWidth = goPlaneBounds.size.x;

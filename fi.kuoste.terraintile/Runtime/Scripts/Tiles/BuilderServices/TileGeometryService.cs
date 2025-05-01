@@ -1,4 +1,6 @@
-using Kuoste.LidarWorld.Tools.Logger;
+using Kuoste.TerrainEngine.Common.Interfaces;
+using Kuoste.TerrainEngine.Common.Loggers;
+using Kuoste.TerrainEngine.Common.Tiles;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -6,7 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainTile.Tiles.BuilderServices
 {
     public class TileGeometryService : TileService, ITileBuilderService
     {

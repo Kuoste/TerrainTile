@@ -1,9 +1,10 @@
+using Kuoste.TerrainEngine.Common.Tiles;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainTile.Tiles.BuilderServices
 {
     public interface ITileBuilderService
     {

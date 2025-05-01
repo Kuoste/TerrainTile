@@ -1,4 +1,6 @@
-using Kuoste.LidarWorld.Tools.Logger;
+using Kuoste.TerrainEngine.Common.Interfaces;
+using Kuoste.TerrainEngine.Common.Loggers;
+using Kuoste.TerrainEngine.Common.Tiles;
 using LasUtility.Nls;
 using LasUtility.ShapefileRasteriser;
 using NetTopologySuite.Geometries;
@@ -10,7 +12,7 @@ using System.IO;
 using System.Threading;
 using UnityEngine;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainTile.Tiles.BuilderServices
 {
     public class TileRasterService : TileService, ITileBuilderService
     {

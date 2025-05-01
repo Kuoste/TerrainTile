@@ -15,7 +15,7 @@ namespace Kuoste.TerrainEngine.Common.Loggers
         Exception
     }
 
-    public class CompositeLogger
+    public class CompositeLogger : ILogger
     {
         private readonly List<ILogger> _loggers;
         private readonly LogLevel _logLevel;
