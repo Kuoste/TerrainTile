@@ -1,10 +1,11 @@
-
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.VoxelGrid;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.DemDsm
 {
     public class DemDsmReader : Builder, IDemDsmBuilder
     {

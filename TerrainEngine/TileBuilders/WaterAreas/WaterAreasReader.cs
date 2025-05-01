@@ -1,53 +1,57 @@
-using Kuoste.LidarWorld.Tile;
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
-public class WaterAreasReader : Builder, IWaterAreasBuilder
+namespace Kuoste.TerrainEngine.TileBuilders.WaterAreas
 {
-    public List<Polygon> Build(Tile tile)
+    public class WaterAreasReader : Builder, IWaterAreasBuilder
     {
-        List<Polygon> polygons = new();
-
-        if (IsCancellationRequested())
-            return polygons;
-
-        string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
-
-        string[] sAreas = File.ReadAllText(sFullFilename).Split("Polygon");
-
-        foreach (string sArea in sAreas)
+        public List<Polygon> Build(Tile tile)
         {
+            List<Polygon> polygons = new();
+
             if (IsCancellationRequested())
                 return polygons;
 
-            string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);
+            string sFullFilename = Path.Combine(tile.Common.DirectoryIntermediate, IWaterAreasBuilder.Filename(tile.Name, tile.Common.Version));
 
-            List<CoordinateZ> coordinates = new();
+            string[] sAreas = File.ReadAllText(sFullFilename).Split("Polygon");
 
-            foreach (string sCoordinate in sCordinates)
+            foreach (string sArea in sAreas)
             {
-                if (!char.IsDigit(sCoordinate[0]))
-                    continue;
+                if (IsCancellationRequested())
+                    return polygons;
 
-                var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
+                string[] sCordinates = sArea.Split("[", StringSplitOptions.RemoveEmptyEntries);
 
-                // Delete the last character which is a closing bracket and everyting after it
-                coords[2] = coords[2][..coords[2].IndexOf(']')];
+                List<CoordinateZ> coordinates = new();
 
-                coordinates.Add(new(
-                    double.Parse(coords[0]),
-                    double.Parse(coords[1]),
-                    double.Parse(coords[2])));
+                foreach (string sCoordinate in sCordinates)
+                {
+                    if (!char.IsDigit(sCoordinate[0]))
+                        continue;
+
+                    var coords = sCoordinate.Split(",", StringSplitOptions.RemoveEmptyEntries);
+
+                    // Delete the last character which is a closing bracket and everyting after it
+                    coords[2] = coords[2][..coords[2].IndexOf(']')];
+
+                    coordinates.Add(new(
+                        double.Parse(coords[0]),
+                        double.Parse(coords[1]),
+                        double.Parse(coords[2])));
+                }
+
+                if (coordinates.Count > 0)
+                {
+                    polygons.Add(new Polygon(new LinearRing(coordinates.ToArray())));
+                }
             }
 
-            if (coordinates.Count > 0)
-            {
-                polygons.Add(new Polygon(new LinearRing(coordinates.ToArray())));
-            }
+            return polygons;
         }
-
-        return polygons;
     }
 }

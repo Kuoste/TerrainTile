@@ -1,4 +1,5 @@
-using Kuoste.LidarWorld.Tile;
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System;
@@ -7,7 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.Trees
 {
     public class TreeReader : Builder, ITreeBuilder
     {

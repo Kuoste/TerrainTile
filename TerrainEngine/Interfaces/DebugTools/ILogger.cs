@@ -1,8 +1,8 @@
 using System;
 
-namespace Kuoste.LidarWorld.Tools.Logger
+namespace Kuoste.TerrainEngine.Interfaces.DebugTools
 {
-    internal interface ILogger
+    public interface ILogger
     {
         void LogDebug(string message);
         void LogInfo(string message);

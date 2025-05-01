@@ -1,3 +1,5 @@
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.DEM;
 using LasUtility.LAS;
 using LasUtility.Nls;
@@ -9,7 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.DemDsm
 {
     public class DemDsmCreator : Builder, IDemDsmBuilder
     {
@@ -122,8 +124,8 @@ namespace Kuoste.LidarWorld.Tile
 
                     int iWholeMeshEdgeLength = TileCommon.EdgeLength * iSubmeshesPerEdge;
 
-                    if (i3kmX < iLowerBound || i3kmX > (iWholeMeshEdgeLength - iUpperBound) ||
-                        i3kmY < iLowerBound || i3kmY > (iWholeMeshEdgeLength - iUpperBound))
+                    if (i3kmX < iLowerBound || i3kmX > iWholeMeshEdgeLength - iUpperBound ||
+                        i3kmY < iLowerBound || i3kmY > iWholeMeshEdgeLength - iUpperBound)
                     {
                         // Part of another file. Todo: Save these points to four separate files
                         // so they can be read when adjacent laz files are processed.

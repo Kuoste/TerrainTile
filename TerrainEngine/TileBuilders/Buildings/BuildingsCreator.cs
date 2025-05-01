@@ -1,3 +1,5 @@
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Common;
 using LasUtility.DEM;
 using LasUtility.LAS;
@@ -10,7 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.Buildings
 {
     public class BuildingsCreator : Builder, IBuildingsBuilder
     {

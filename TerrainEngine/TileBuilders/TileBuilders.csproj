@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+	 <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+	<RootNamespace>Kuoste.TerrainEngine.TileBuilders</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyName>TerrainEngine.TileBuilders</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\LasUtility\LasUtility\LasUtility.csproj" />
+    <ProjectReference Include="..\DebugTools\DebugTools.csproj" />
+    <ProjectReference Include="..\Interfaces\Interfaces.csproj" />
+    <ProjectReference Include="..\Tiles\Tiles.csproj" />
+  </ItemGroup>
+
+</Project>

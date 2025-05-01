@@ -1,7 +1,8 @@
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Common;
 using System.Collections.Generic;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
 {
     public interface IRasterBuilder : IBuilder
     {

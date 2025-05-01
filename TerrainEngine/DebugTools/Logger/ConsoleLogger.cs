@@ -1,7 +1,8 @@
+using Kuoste.TerrainEngine.Interfaces.DebugTools;
 using System;
 
-namespace Kuoste.LidarWorld.Tools.Logger
-{
+namespace Kuoste.TerrainEngine.DebugTools.Logger
+{ 
     internal class ConsoleLogger : ILogger
     {
         public void LogDebug(string message)
@@ -27,4 +28,5 @@ namespace Kuoste.LidarWorld.Tools.Logger
         }
     }
 }
+
 

@@ -1,8 +1,8 @@
-using LasUtility.Common;
+using Kuoste.TerrainEngine.Tiles;
 using NetTopologySuite.Geometries;
 using System.Collections.Generic;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
 {
     public interface IWaterAreasBuilder : IBuilder
     {

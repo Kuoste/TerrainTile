@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+	<LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+	<RootNamespace>Kuoste.TerrainEngine.Interfaces</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyName>TerrainEngine.Interfaces</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tiles\Tiles.csproj" />
+  </ItemGroup>
+
+</Project>

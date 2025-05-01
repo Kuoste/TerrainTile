@@ -1,7 +1,8 @@
+using Kuoste.TerrainEngine.Interfaces.DebugTools;
 using System;
 using System.IO;
 
-namespace Kuoste.LidarWorld.Tools.Logger
+namespace Kuoste.TerrainEngine.DebugTools.Logger
 {
     internal class FileLogger : ILogger
     {

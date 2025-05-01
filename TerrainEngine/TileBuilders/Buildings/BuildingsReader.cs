@@ -1,3 +1,5 @@
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Nls;
 using NetTopologySuite.Geometries;
 using System;
@@ -5,7 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.Buildings
 {
     public class BuildingsReader : Builder, IBuildingsBuilder
     {

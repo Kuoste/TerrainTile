@@ -1,4 +1,3 @@
-using Kuoste.LidarWorld.Tile;
 using LasUtility.Common;
 using LasUtility.Nls;
 using LasUtility.ShapefileRasteriser;
@@ -8,8 +7,10 @@ using NetTopologySuite.IO.Esri;
 using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.Rasters
 {
     public class RasterCreator : Builder, IRasterBuilder
     {

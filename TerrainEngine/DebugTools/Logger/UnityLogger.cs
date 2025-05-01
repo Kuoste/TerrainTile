@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Kuoste.LidarWorld.Tools.Logger
+namespace Kuoste.TerrainEngine.DebugTools.Logger
 {
     internal class UnityLogger : ILogger
     {

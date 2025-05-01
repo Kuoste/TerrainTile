@@ -1,11 +1,12 @@
-using Kuoste.LidarWorld.Tile;
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Common;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders.Rasters
 {
     public class RasterReader : Builder, IRasterBuilder
     {

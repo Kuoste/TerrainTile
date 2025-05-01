@@ -1,12 +1,14 @@
-using Kuoste.LidarWorld.Tools.Logger;
+using Kuoste.TerrainEngine.DebugTools.Logger;
+using Kuoste.TerrainEngine.Interfaces.DebugTools;
+using Kuoste.TerrainEngine.Interfaces.TileBuilders;
 using System.Threading;
 
-namespace Kuoste.LidarWorld.Tile
+namespace Kuoste.TerrainEngine.TileBuilders
 {
     public class Builder : IBuilder
     {
         public CancellationToken CancellationToken { get; set; }
-        public CompositeLogger Logger { get; set; }
+        public ILogger Logger { get; set; }
 
         public bool IsCancellationRequested()
         {
