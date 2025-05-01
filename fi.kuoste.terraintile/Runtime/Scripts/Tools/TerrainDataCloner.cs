@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using UnityEngine;
 
-namespace Kuoste.LidarWorld.Tools
+namespace Kuoste.TerrainTile.Tools
 {
     // From https://gist.github.com/zsoi/c965ff38938cd126f00d
 

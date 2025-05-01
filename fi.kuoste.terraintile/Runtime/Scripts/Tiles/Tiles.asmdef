@@ -1,0 +1,17 @@
+{
+    "name": "Tiles",
+    "rootNamespace": "",
+    "references": [
+        "GUID:21b0c8d1703a94250bfac916590cea4f",
+        "GUID:5aec0780d134ceb41b33de803b0f254d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
