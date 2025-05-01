@@ -20,27 +20,25 @@ namespace Kuoste.TerrainEngine.Common.Loggers
         private readonly List<ILogger> _loggers;
         private readonly LogLevel _logLevel;
 
-        public CompositeLogger(LogLevel logLevel, bool bUseConsole, bool bUseUnity, bool bUseFile,
+        public CompositeLogger(LogLevel logLevel, bool bUseConsole, bool bUseFile,
             string sFilePath)
         {
             _loggers = new List<ILogger>();
             if (bUseConsole)
             {
-                _loggers.Add(new ConsoleLogger());
+                AddLogger(new ConsoleLogger());
             }
             if (bUseFile)
             {
-                _loggers.Add(new FileLogger(sFilePath));
-            }
-
-            if (bUseUnity)
-            {
-#if UNITY_5_3_OR_NEWER
-                _loggers.Add(new UnityLogger());
-#endif
+                AddLogger(new FileLogger(sFilePath));
             }
 
             _logLevel = logLevel;
+        }
+
+        public void AddLogger(ILogger logger)
+        {
+            _loggers.Add(logger);
         }
 
         public void LogDebug(string message)

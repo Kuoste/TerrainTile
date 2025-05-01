@@ -79,9 +79,12 @@ namespace Kuoste.TerrainTile.Tiles
             _cancellationTokenSource = new CancellationTokenSource();
             CancellationToken token = _cancellationTokenSource.Token;
 
-            CompositeLogger loggerDsm = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Dsm.log"));
-            CompositeLogger loggerRaster = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Raster.log"));
-            CompositeLogger loggerGeometry = new(_LogLevel, _bLogConsole, _bLogUnity, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Geometry.log"));
+            CompositeLogger loggerDsm = new(_LogLevel, _bLogConsole, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Dsm.log"));
+            CompositeLogger loggerRaster = new(_LogLevel, _bLogConsole, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Raster.log"));
+            CompositeLogger loggerGeometry = new(_LogLevel, _bLogConsole, _bLogFile, Path.Combine(DataDirectoryIntermediate, "Geometry.log"));
+            loggerDsm.AddLogger(new UnityLogger());
+            loggerRaster.AddLogger(new UnityLogger());
+            loggerGeometry.AddLogger(new UnityLogger());
 
             ITileBuilderService DsmPointCloudService = new TileDsmPointCloudService(
                     new DemDsmReader() { CancellationToken = token, Logger = loggerDsm },

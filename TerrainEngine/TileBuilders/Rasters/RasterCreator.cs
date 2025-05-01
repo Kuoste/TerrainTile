@@ -44,8 +44,6 @@ namespace Kuoste.TerrainEngine.TileBuilders.Rasters
                 return ByteRaster.CreateFromAscii(sFullFilename);
             }
 
-            Stopwatch sw = Stopwatch.StartNew();
-
             RasteriserEvenOdd rasteriser = new();
             rasteriser.SetCancellationToken(CancellationToken);
 

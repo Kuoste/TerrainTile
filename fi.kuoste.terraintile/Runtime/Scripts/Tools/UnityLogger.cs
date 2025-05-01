@@ -1,10 +1,9 @@
-#if UNITY_5_3_OR_NEWER
 using System;
 using UnityEngine;
 
 namespace Kuoste.TerrainEngine.Common.Loggers
 {
-    internal class UnityLogger : ILogger
+    public class UnityLogger : Kuoste.TerrainEngine.Common.Interfaces.ILogger
     {
         public void LogDebug(string message)
         {
@@ -28,4 +27,3 @@ namespace Kuoste.TerrainEngine.Common.Loggers
         }
     }
 }
-#endif
