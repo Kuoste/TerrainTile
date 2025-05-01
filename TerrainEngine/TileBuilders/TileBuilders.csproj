@@ -17,9 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\LasUtility\LasUtility\LasUtility.csproj" />
-    <ProjectReference Include="..\DebugTools\DebugTools.csproj" />
-    <ProjectReference Include="..\Interfaces\Interfaces.csproj" />
-    <ProjectReference Include="..\Tiles\Tiles.csproj" />
+    <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
 
 </Project>

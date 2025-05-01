@@ -1,5 +1,5 @@
-using Kuoste.TerrainEngine.Interfaces.TileBuilders;
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Interfaces;
+using Kuoste.TerrainEngine.Common.Tiles;
 using LasUtility.VoxelGrid;
 using System.Collections.Concurrent;
 using System.IO;

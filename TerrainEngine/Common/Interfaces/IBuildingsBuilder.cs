@@ -1,8 +1,8 @@
 using NetTopologySuite.Geometries;
 using System.Collections.Generic;
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Tiles;
 
-namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
+namespace Kuoste.TerrainEngine.Common.Interfaces
 {
     public interface IBuildingsBuilder : IBuilder
     {

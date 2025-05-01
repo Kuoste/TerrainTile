@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Kuoste.TerrainEngine.DebugTools.Logger
+namespace Kuoste.TerrainEngine.Common.Loggers
 {
     internal class UnityLogger : ILogger
     {

@@ -1,10 +1,10 @@
-using Kuoste.TerrainEngine.Interfaces.DebugTools;
+using Kuoste.TerrainEngine.Common.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Schema;
 
-namespace Kuoste.TerrainEngine.DebugTools.Logger
+namespace Kuoste.TerrainEngine.Common.Loggers
 {
     public enum LogLevel
     {

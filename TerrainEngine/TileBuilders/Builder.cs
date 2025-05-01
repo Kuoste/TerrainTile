@@ -1,6 +1,4 @@
-using Kuoste.TerrainEngine.DebugTools.Logger;
-using Kuoste.TerrainEngine.Interfaces.DebugTools;
-using Kuoste.TerrainEngine.Interfaces.TileBuilders;
+using Kuoste.TerrainEngine.Common.Interfaces;
 using System.Threading;
 
 namespace Kuoste.TerrainEngine.TileBuilders

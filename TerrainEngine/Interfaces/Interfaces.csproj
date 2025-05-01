@@ -15,8 +15,4 @@
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Tiles\Tiles.csproj" />
-  </ItemGroup>
-
 </Project>

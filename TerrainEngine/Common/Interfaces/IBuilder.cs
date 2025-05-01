@@ -1,7 +1,6 @@
-using Kuoste.TerrainEngine.Interfaces.DebugTools;
 using System.Threading;
 
-namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
+namespace Kuoste.TerrainEngine.Common.Interfaces
 {
     public interface IBuilder
     {

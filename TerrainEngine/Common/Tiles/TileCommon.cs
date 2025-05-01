@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Kuoste.TerrainEngine.Tiles
+namespace Kuoste.TerrainEngine.Common.Tiles
 {
     public class TileCommon
     {

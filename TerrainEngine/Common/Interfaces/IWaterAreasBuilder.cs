@@ -1,8 +1,8 @@
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Tiles;
 using NetTopologySuite.Geometries;
 using System.Collections.Generic;
 
-namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
+namespace Kuoste.TerrainEngine.Common.Interfaces
 {
     public interface IWaterAreasBuilder : IBuilder
     {

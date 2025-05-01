@@ -7,8 +7,8 @@ using NetTopologySuite.IO.Esri;
 using System.IO;
 using System.Diagnostics;
 using System.Collections.Generic;
-using Kuoste.TerrainEngine.Interfaces.TileBuilders;
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Interfaces;
+using Kuoste.TerrainEngine.Common.Tiles;
 
 namespace Kuoste.TerrainEngine.TileBuilders.Rasters
 {

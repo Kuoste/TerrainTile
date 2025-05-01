@@ -1,4 +1,3 @@
-using Kuoste.TerrainEngine.Tiles;
 using LasUtility.Common;
 using LasUtility.VoxelGrid;
 using NetTopologySuite.Geometries;
@@ -8,7 +7,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 
-namespace Kuoste.TerrainEngine.Tiles
+namespace Kuoste.TerrainEngine.Common.Tiles
 {
     public class Tile
     {

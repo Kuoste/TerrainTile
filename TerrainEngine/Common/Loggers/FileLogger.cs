@@ -1,8 +1,8 @@
-using Kuoste.TerrainEngine.Interfaces.DebugTools;
+using Kuoste.TerrainEngine.Common.Interfaces;
 using System;
 using System.IO;
 
-namespace Kuoste.TerrainEngine.DebugTools.Logger
+namespace Kuoste.TerrainEngine.Common.Loggers
 {
     internal class FileLogger : ILogger
     {

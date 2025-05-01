@@ -1,6 +1,6 @@
 using System;
 
-namespace Kuoste.TerrainEngine.Interfaces.DebugTools
+namespace Kuoste.TerrainEngine.Common.Interfaces
 {
     public interface ILogger
     {

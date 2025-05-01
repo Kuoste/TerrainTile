@@ -1,5 +1,5 @@
-using Kuoste.TerrainEngine.Interfaces.TileBuilders;
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Interfaces;
+using Kuoste.TerrainEngine.Common.Tiles;
 using LasUtility.DEM;
 using LasUtility.LAS;
 using LasUtility.Nls;

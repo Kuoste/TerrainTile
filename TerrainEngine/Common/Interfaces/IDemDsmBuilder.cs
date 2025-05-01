@@ -1,9 +1,9 @@
-using Kuoste.TerrainEngine.Tiles;
+using Kuoste.TerrainEngine.Common.Tiles;
 using LasUtility.Common;
 using LasUtility.VoxelGrid;
 using System.Collections.Concurrent;
 
-namespace Kuoste.TerrainEngine.Interfaces.TileBuilders
+namespace Kuoste.TerrainEngine.Common.Interfaces
 {
     public interface IDemDsmBuilder : IBuilder
     {
