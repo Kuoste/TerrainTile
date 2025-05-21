@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\LasUtility\LasUtility\LasUtility.csproj" />
+    <ProjectReference Include="..\..\..\tools\LasUtility\LasUtility\LasUtility.csproj" />
     <ProjectReference Include="..\Common\Common.csproj" />
   </ItemGroup>
 
