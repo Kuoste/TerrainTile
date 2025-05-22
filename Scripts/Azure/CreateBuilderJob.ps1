@@ -15,12 +15,14 @@ $SB_QUEUE_NAME = "create-dem"
 $USER_ASSIGNED_IDENTITY_NAME = "uami-for-jobs"
 $LOCATION = "northeurope"
 $CONTAINER_IMAGE_NAME = "servicebus-reader-job:1.0" 
+$CONTAINER_IMAGE_NAME = "$PROJECT_NAME-job:1.0" 
 
 $PROJECT_NAME_WO_DASH = $PROJECT_NAME -replace "-", ""
 $TIMESTAMP = Get-Date -Format "MMddHHmm"
+$TIMESTAMP = "05221008"
 $CONTAINER_REGISTRY_NAME = "acr" + $PROJECT_NAME_WO_DASH + $TIMESTAMP
 $RESOURCE_GROUP = "rg-$PROJECT_NAME-$TIMESTAMP"
-$SB_NAMESPACE = "sbns" + $PROJECT_NAME_WO_DASH + $TIMESTAMP
+$SB_NAMESPACE = "sbns-$PROJECT_NAME-$TIMESTAMP"
 $CONTAINER_APP_ENVIRONMENT_NAME ="cae-$PROJECT_NAME"
 $JOB_NAME = "caj-$PROJECT_NAME"
 $LOG_ANALYTICS_WORKSPACE_NAME = "la-$PROJECT_NAME"
@@ -84,7 +86,7 @@ az acr create `
 az acr build `
     --registry $CONTAINER_REGISTRY_NAME `
     --image $CONTAINER_IMAGE_NAME `
-    "https://github.com/karthimalyala/ServiceBusEventDriven.git"
+	"https://github.com/Kuoste/TerrainTile#:BuilderServices"
 	
 az provider register -n Microsoft.OperationalInsights --wait
 
